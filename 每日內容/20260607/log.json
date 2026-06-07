@@ -2,31 +2,31 @@
   "date": "2026.06.07",
   "articles_fetched": 21,
   "selected": {
-    "title": "Claude Opus 找到 45 億美元漏洞，讓 Zcash 崩盤背後的資安省思",
-    "source": "動區動趨",
-    "url": "https://www.blocktempo.com/ai-vulnerability-discovery-democratizes-cybersecurity-threats-opus-zcash-bug-found/",
-    "pick_reason": null
+    "title": "Meta made its own AI-generated clickbait news feed",
+    "source": "The Verge AI",
+    "url": "https://www.theverge.com/ai-artificial-intelligence/944235/meta-app-ai-clickbait-articles",
+    "pick_reason": "Fallback: sorted by popularity and content length."
   },
   "post_content": {
     "category": "AI NEWS",
-    "title_zh": "Claude Opus 找到 45 ",
+    "title_zh": "Meta made its own ",
     "key_stat": "",
     "sections": [
       {
-        "heading": "發生了什麼事",
-        "body": "一名安全研究員使用 Anthropic 的 Opus 4.8 模型，協助發現了 Zcash"
+        "heading": "事件重點",
+        "body": "Facebook has long been filled with feeds of c"
       },
       {
-        "heading": "為什麼值得關注",
-        "body": "這則消息值得持續觀察"
+        "heading": "為何值得看",
+        "body": "它反映了 AI 產品與產業節奏正在持續加快。"
       },
       {
-        "heading": "對你的影響",
-        "body": "更多細節請見原文連結"
+        "heading": "接下來",
+        "body": "後續可觀察產品落地、使用者反應與市場擴散。"
       }
     ],
-    "caption": "這個你可能還沒看到 👀\n\nClaude Opus 找到 45 億美元漏洞，讓 Zcash 崩盤背後的資安省思\n\n你怎麼看？"
+    "caption": "今天看到一則值得注意的 AI 新聞：Meta made its own AI-generated clickbait news feed"
   },
-  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260607/images/featured_082021.png",
-  "source_url": "https://www.blocktempo.com/ai-vulnerability-discovery-democratizes-cybersecurity-threats-opus-zcash-bug-found/"
+  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260607/images/featured_093904.png",
+  "source_url": "https://www.theverge.com/ai-artificial-intelligence/944235/meta-app-ai-clickbait-articles"
 }
