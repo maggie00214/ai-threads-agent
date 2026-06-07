@@ -71,6 +71,9 @@ jobs:
           git commit -m "Daily image ${TODAY}"
           git push --force origin images
 
+          # 切回 main 還原 Python 工作環境
+          git checkout main
+
       - name: Publish to Threads via API
         env:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
