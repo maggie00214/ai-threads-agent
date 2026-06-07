@@ -136,23 +136,36 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     date_w = draw.textbbox((0, 0), date_str, font=f_date)[2]
     draw.text((W - PAD - date_w, tag_y + tag_pad_y + 2), date_str, font=f_date, fill=BLUE)
 
-    # ── 主標題（優先一行；超過則縮字體，最多兩行）──────────
+    # ── 主標題（智慧縮放：優先一行，換行時第二行不能 < 2 字）─
     title = post.get("title_zh", "")
     title_max_w = W - PAD * 2
-    # 從 76px 往下縮到 42px，找到能單行顯示的最大字體
-    f_title = _font(42)  # 預設最小
-    for font_size in range(76, 40, -2):
-        f_title_try = _font(font_size)
-        if draw.textbbox((0, 0), title, font=f_title_try)[2] <= title_max_w:
-            f_title = f_title_try
-            break
+
+    def _pick_title_font(t, max_w):
+        """找最大字體讓標題符合以下條件之一：
+        (a) 剛好一行，或
+        (b) 兩行且第二行 >= 2 字
+        若縮到 32px 仍不符合，直接用 32px
+        """
+        best = _font(32)
+        for fs in range(76, 30, -2):
+            f = _font(fs)
+            lines = _wrap(draw, t, f, max_w)
+            if len(lines) == 1:
+                return f          # 完美：單行
+            if len(lines) == 2 and len(lines[1].strip()) >= 2:
+                best = f          # 可接受：兩行且第二行夠長，繼續看有沒有更大能塞一行
+            elif len(lines) == 2 and len(lines[1].strip()) < 2:
+                continue          # 第二行太短，繼續縮
+        return best
+
+    f_title = _pick_title_font(title, title_max_w)
+    title_lines = _wrap(draw, title, f_title, title_max_w)
 
     ty = tag_y + tag_h + 56
-    title_lines = _wrap(draw, title, f_title, title_max_w)
-    for line in title_lines[:2]:  # 最多 2 行
+    for line in title_lines[:2]:
         draw.text((PAD, ty), line, font=f_title, fill=WHITE)
         ty += _text_h(draw, line, f_title) + 8
-    ty += 36  # 標題下方空白
+    ty += 36
 
     # ── 橘色分隔線 ───────────────────────────────────────────
     draw.rectangle([PAD, ty, W - PAD, ty + 3], fill=ORANGE)

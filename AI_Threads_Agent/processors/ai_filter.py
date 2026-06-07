@@ -58,9 +58,16 @@ def pick_top_article(articles: List[Dict]) -> Dict:
             "title": a.get("title", ""),
             "summary": a.get("summary", a.get("content", ""))[:250],
             "push_count": a.get("push_count", 0),
+            # 內容字數：太短的文章不優先
+            "content_len": len(a.get("summary", a.get("content", ""))),
         }
         for i, a in enumerate(articles)
     ]
+
+    prompt = prompt.replace(
+        "文章清單：",
+        "文章清單（content_len 太短的文章資訊不足，請優先選 content_len > 100 的）："
+    )
 
     prompt = f"""你是台灣科技媒體編輯。從以下文章選出「最值得今天報導的那一篇」，標準：
 1. AI 核心相關
@@ -94,10 +101,14 @@ def generate_post_content(article: Dict, today_str: str) -> Dict:
     - sections: 3個分段，每段有 heading（有觀點，≤12字）+ body（≤45字）
     - caption: Threads 主文（鉤子句＋具體細節＋輕互動，130字內，不含hashtag）
     """
+    raw_content = article.get('content', '') or article.get('summary', '')
+    summary     = article.get('summary', '') or raw_content
+    # 合併所有可用文字，餵給 DeepSeek 的上限提高到 1500 字
+    full_text   = f"{summary}\n{raw_content}"[:1500].strip()
     source_text = (
         f"標題：{article.get('title', '')}\n"
         f"來源：{article.get('source', '')}\n"
-        f"內容：{article.get('summary', article.get('content', ''))[:600]}"
+        f"內容：{full_text}"
     )
 
     prompt = f"""你是一個在 Threads 上很有人緣的台灣科技愛好者，今天是 {today_str}。
