@@ -39,18 +39,37 @@ jobs:
           cd AI_Threads_Agent
           python agent.py --dry-run
 
-      - name: Commit generated image to repo
+      - name: Publish image to images branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          TODAY=$(date +%Y%m%d)
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/maggie00214/ai-threads-agent.git
-          git fetch origin main
-          git reset --soft origin/main
+
+          # 備份圖片到暫存區
+          mkdir -p /tmp/daily/${TODAY}/images
+          cp 每日內容/${TODAY}/images/featured.png /tmp/daily/${TODAY}/images/
+          cp 每日內容/${TODAY}/log.json /tmp/daily/${TODAY}/
+
+          # 切換到 images 孤立分支（不影響 main）
+          git fetch origin images 2>/dev/null || true
+          if git ls-remote --exit-code origin images; then
+            git checkout -B images origin/images
+          else
+            git checkout --orphan images
+            git rm -rf .
+          fi
+
+          # 複製圖片進分支
+          mkdir -p 每日內容/${TODAY}/images
+          cp /tmp/daily/${TODAY}/images/featured.png 每日內容/${TODAY}/images/
+          cp /tmp/daily/${TODAY}/log.json 每日內容/${TODAY}/
+
           git add 每日內容/
-          git diff --staged --quiet || git commit -m "Daily post $(date +%Y%m%d)"
-          git push origin main
+          git commit -m "Daily image ${TODAY}"
+          git push --force origin images
 
       - name: Publish to Threads via API
         env:
