@@ -46,15 +46,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/maggie00214/ai-threads-agent.git
+          git fetch origin main
+          git reset --soft origin/main
           git add 每日內容/
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Daily post $(date +%Y%m%d)"
-            git fetch origin main
-            git rebase origin/main
-            git push origin main
-          fi
+          git diff --staged --quiet || git commit -m "Daily post $(date +%Y%m%d)"
+          git push origin main
 
       - name: Publish to Threads via API
         env:
