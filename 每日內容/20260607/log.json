@@ -2,19 +2,19 @@
   "date": "2026.06.07",
   "articles_fetched": 21,
   "selected": {
-    "title": "希臘擬立法課 15% 加密貨幣稅：500 歐元內、個人挖礦豁免",
+    "title": "Anthropic 宣布 Claude Cowork 五小時用量上限翻倍，為期一個月",
     "source": "動區動趨",
-    "url": "https://www.blocktempo.com/greece-draft-law-15-percent-crypto-capital-gains-tax-parliament/",
+    "url": "https://www.blocktempo.com/anthropic-claude-cowork-usage-limits-doubled-spacex-colossus-300mw-gpu/",
     "pick_reason": null
   },
   "post_content": {
     "category": "AI NEWS",
-    "title_zh": "希臘擬立法課 15% 加密貨幣稅：5",
+    "title_zh": "Anthropic 宣布 Claud",
     "key_stat": "",
     "sections": [
       {
         "heading": "發生了什麼事",
-        "body": "希臘政府正起草立法，擬對加密貨幣投資收益課徵 15% 資本利得稅，設 500 歐元免稅門檻"
+        "body": "Anthropic 宣布將 Claude Cowork 的五小時滾動配額視窗翻倍，有效期 "
       },
       {
         "heading": "為什麼值得關注",
@@ -25,8 +25,8 @@
         "body": "更多細節請見原文連結"
       }
     ],
-    "caption": "這個你可能還沒看到 👀\n\n希臘擬立法課 15% 加密貨幣稅：500 歐元內、個人挖礦豁免\n\n你怎麼看？"
+    "caption": "這個你可能還沒看到 👀\n\nAnthropic 宣布 Claude Cowork 五小時用量上限翻倍，為期一個月\n\n你怎麼看？"
   },
   "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260607/images/featured.png",
-  "source_url": "https://www.blocktempo.com/greece-draft-law-15-percent-crypto-capital-gains-tax-parliament/"
+  "source_url": "https://www.blocktempo.com/anthropic-claude-cowork-usage-limits-doubled-spacex-colossus-300mw-gpu/"
 }
