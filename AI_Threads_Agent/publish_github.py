@@ -30,8 +30,10 @@ def main():
     source_url = log.get("source_url", "")
     source_name = log["selected"].get("source", "")
 
+    from urllib.parse import quote
     repo      = os.environ.get("GITHUB_REPO", "maggie00214/ai-threads-agent")
-    image_url = f"https://raw.githubusercontent.com/{repo}/images/每日內容/{today}/images/featured.png"
+    encoded   = quote(f"每日內容/{today}/images/featured.png", safe="/")
+    image_url = f"https://raw.githubusercontent.com/{repo}/images/{encoded}"
 
     print(f"[Publish] 圖片 URL：{image_url}")
     print(f"[Publish] 文案預覽：{caption[:60]}...")
