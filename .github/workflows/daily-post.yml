@@ -82,6 +82,9 @@ jobs:
           # 切回 main 還原 Python 環境
           git checkout main
 
+          # 還原剛才生成的 log.json（git checkout -- . 會把它清掉）
+          cp /tmp/daily/${TODAY}/log.json 每日內容/${TODAY}/log.json
+
       - name: Publish to Threads via API
         env:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}

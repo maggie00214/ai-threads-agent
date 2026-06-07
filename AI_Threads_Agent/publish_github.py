@@ -34,8 +34,8 @@ def main():
     import posixpath
     repo       = os.environ.get("GITHUB_REPO", "maggie00214/ai-threads-agent")
     # 從 log.json 取得實際圖片檔名（含時間戳，每次唯一）
-    img_path   = log.get("image_path", "")
-    img_file   = os.path.basename(img_path) if img_path else "featured.png"
+    img_path   = log.get("image_path", "").replace("\\", "/")
+    img_file   = img_path.split("/")[-1] if img_path else "featured.png"
     encoded    = quote(f"每日內容/{today}/images/{img_file}", safe="/")
     image_url  = f"https://raw.githubusercontent.com/{repo}/images/{encoded}"
 
