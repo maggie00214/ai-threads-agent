@@ -71,7 +71,7 @@ jobs:
           cp /tmp/daily/${TODAY}/log.json 每日內容/${TODAY}/
 
           git add 每日內容/
-          git diff --staged --quiet || git commit -m "Daily image ${TODAY}"
+          git commit --allow-empty -m "Daily image ${TODAY} $(date +%H%M%S)"
           git push --force origin images
 
           # 切回 main 還原 Python 環境
