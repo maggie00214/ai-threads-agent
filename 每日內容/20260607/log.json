@@ -1,32 +1,30 @@
 {
   "date": "2026.06.07",
-  "articles_fetched": 21,
+  "articles_fetched": 5,
   "selected": {
-    "title": "川普喊入股美國 AI 企業，最快本週與 OpenAI、Anthropic、xAI 商議，Altman 拋「公共財富基金」構想",
-    "source": "動區動趨",
-    "url": "https://www.blocktempo.com/trump-government-stake-openai-anthropic-xai-public-wealth-fund/",
-    "pick_reason": "川普AI入股政策，影響全球AI產業，台灣讀者關注。"
+    "title": "OpenAI unveils Lockdown Mode to protect sensitive data from prompt injection attacks",
+    "source": "TechCrunch AI",
+    "url": "https://techcrunch.com/2026/06/06/openai-unveils-lockdown-mode-to-protect-sensitive-data-from-prompt-injection-attacks/",
+    "pick_reason": "安全漏洞威脅大，台灣用戶資料需關注。"
   },
   "post_content": {
     "category": "AI NEWS",
-    "title_zh": "川普要入股AI公司？這招太狠了",
-    "key_stat": "本週就決定",
+    "title_zh": "OpenAI 推鎖定模式防Prompt注入",
     "sections": [
       {
-        "heading": "政府直接當股東？",
-        "body": "川普喊話要入股OpenAI、Anthropic、xAI，最快本週白宮開談，這步棋誰都沒想到。"
+        "heading": "什麼是Lockdown Mode？",
+        "body": "新防護機制，限制敏感資料在對話中被意外擷取或外洩。"
       },
       {
-        "heading": "Altman反手拋出大膽提案",
-        "body": "Sam Altman順勢提出「公共財富基金」構想，要把AI利潤回饋全民，話題瞬間炸開。"
+        "heading": "仍存在漏洞風險",
+        "body": "官方坦言無法完全擋住prompt注入，但能降低敏感資料外流機率。"
       },
       {
-        "heading": "革命夥伴還是政治綁架？",
-        "body": "川普稱這是「革命夥伴關係」，但業界擔憂政府插手會讓AI發展變調，爭議超大。"
+        "heading": "為何現在推出？",
+        "body": "企業用戶對資料安全要求提高，OpenAI搶先補強對話隱私防線。"
       }
     ],
-    "caption": "美國政府要當AI公司股東？這什麼操作 🤯\n\n川普說最快本週就要跟OpenAI、Anthropic、xAI談入股，還喊他們「革命夥伴」。Altman更狂，直接拋出「公共財富基金」構想，要把AI賺的錢分給全民。\n\n以後AI會不會變國營事業啊？你覺得政府該不該入股AI公司？"
+    "caption": "ChatGPT 又出招了。這次 Lockdown Mode 直接鎖住敏感資料，不讓 prompt injection 偷走你的關鍵資訊。雖然官方說不是 100% 無敵，但至少多一層防線。企業用戶可以鬆一口氣了嗎？"
   },
-  "image_path": "C:\\Users\\fkgj5\\OneDrive\\桌面\\AI tool\\AI每日發文Agent\\每日內容\\20260607\\images\\featured.png",
-  "source_url": "https://www.blocktempo.com/trump-government-stake-openai-anthropic-xai-public-wealth-fund/"
+  "image_path": "C:\\Users\\fkgj5\\OneDrive\\桌面\\AI tool\\AI每日發文Agent\\每日內容\\20260607\\images\\featured.png"
 }

@@ -221,7 +221,9 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
 
 
 def generate_all_images(post_content: Dict, source: str, date_str: str, output_dir: str) -> List[str]:
+    from datetime import datetime
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    card_path = str(Path(output_dir) / "featured.png")
+    ts = datetime.now().strftime("%H%M%S")
+    card_path = str(Path(output_dir) / f"featured_{ts}.png")
     generate_featured_card(post_content, source, date_str, card_path)
     return [card_path]

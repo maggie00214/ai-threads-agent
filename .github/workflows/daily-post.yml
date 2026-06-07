@@ -48,12 +48,17 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/maggie00214/ai-threads-agent.git
 
-          # 備份生成的圖片到 /tmp（branch 切換前）
+          # 從 log.json 取得實際圖片檔名（含時間戳）
+          IMG_PATH=$(python3 -c "import json; d=json.load(open('每日內容/${TODAY}/log.json')); print(d['image_path'].replace('\\\\','/'))")
+          IMG_FILENAME=$(basename "$IMG_PATH")
+          echo "圖片檔名：${IMG_FILENAME}"
+
+          # 備份到 /tmp
           mkdir -p /tmp/daily/${TODAY}/images
-          cp 每日內容/${TODAY}/images/featured.png /tmp/daily/${TODAY}/images/
+          cp "每日內容/${TODAY}/images/${IMG_FILENAME}" /tmp/daily/${TODAY}/images/
           cp 每日內容/${TODAY}/log.json /tmp/daily/${TODAY}/
 
-          # 清除 working tree 變更，讓 git checkout 不報錯
+          # 清除 working tree，讓 branch 切換不報錯
           git checkout -- .
 
           # 切換到 images 孤立分支
@@ -65,13 +70,13 @@ jobs:
             git rm -rf .
           fi
 
-          # 放入今日圖片
+          # 放入今日圖片（用唯一檔名，不會被 CDN 快取）
           mkdir -p 每日內容/${TODAY}/images
-          cp /tmp/daily/${TODAY}/images/featured.png 每日內容/${TODAY}/images/
+          cp "/tmp/daily/${TODAY}/images/${IMG_FILENAME}" "每日內容/${TODAY}/images/${IMG_FILENAME}"
           cp /tmp/daily/${TODAY}/log.json 每日內容/${TODAY}/
 
           git add 每日內容/
-          git commit --allow-empty -m "Daily image ${TODAY} $(date +%H%M%S)"
+          git commit --allow-empty -m "Daily image ${TODAY} ${IMG_FILENAME}"
           git push --force origin images
 
           # 切回 main 還原 Python 環境
