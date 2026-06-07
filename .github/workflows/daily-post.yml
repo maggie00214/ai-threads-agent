@@ -46,6 +46,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/maggie00214/ai-threads-agent.git
+          git pull origin main --rebase
           git add 每日內容/
           git diff --staged --quiet || git commit -m "Daily post $(date +%Y%m%d)"
           git push origin main
