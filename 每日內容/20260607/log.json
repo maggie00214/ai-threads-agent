@@ -2,19 +2,19 @@
   "date": "2026.06.07",
   "articles_fetched": 21,
   "selected": {
-    "title": "Anthropic 宣布 Claude Cowork 五小時用量上限翻倍，為期一個月",
+    "title": "Claude Opus 找到 45 億美元漏洞，讓 Zcash 崩盤背後的資安省思",
     "source": "動區動趨",
-    "url": "https://www.blocktempo.com/anthropic-claude-cowork-usage-limits-doubled-spacex-colossus-300mw-gpu/",
+    "url": "https://www.blocktempo.com/ai-vulnerability-discovery-democratizes-cybersecurity-threats-opus-zcash-bug-found/",
     "pick_reason": null
   },
   "post_content": {
     "category": "AI NEWS",
-    "title_zh": "Anthropic 宣布 Claud",
+    "title_zh": "Claude Opus 找到 45 ",
     "key_stat": "",
     "sections": [
       {
         "heading": "發生了什麼事",
-        "body": "Anthropic 宣布將 Claude Cowork 的五小時滾動配額視窗翻倍，有效期 "
+        "body": "一名安全研究員使用 Anthropic 的 Opus 4.8 模型，協助發現了 Zcash"
       },
       {
         "heading": "為什麼值得關注",
@@ -25,8 +25,8 @@
         "body": "更多細節請見原文連結"
       }
     ],
-    "caption": "這個你可能還沒看到 👀\n\nAnthropic 宣布 Claude Cowork 五小時用量上限翻倍，為期一個月\n\n你怎麼看？"
+    "caption": "這個你可能還沒看到 👀\n\nClaude Opus 找到 45 億美元漏洞，讓 Zcash 崩盤背後的資安省思\n\n你怎麼看？"
   },
   "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260607/images/featured.png",
-  "source_url": "https://www.blocktempo.com/anthropic-claude-cowork-usage-limits-doubled-spacex-colossus-300mw-gpu/"
+  "source_url": "https://www.blocktempo.com/ai-vulnerability-discovery-democratizes-cybersecurity-threats-opus-zcash-bug-found/"
 }
