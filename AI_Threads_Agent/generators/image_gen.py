@@ -136,19 +136,23 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     date_w = draw.textbbox((0, 0), date_str, font=f_date)[2]
     draw.text((W - PAD - date_w, tag_y + tag_pad_y + 2), date_str, font=f_date, fill=BLUE)
 
-    # ── 主標題（自動縮放到單行）─────────────────────────────
+    # ── 主標題（優先一行；超過則縮字體，最多兩行）──────────
     title = post.get("title_zh", "")
     title_max_w = W - PAD * 2
-    # 從 80px 往下縮，直到標題剛好一行
-    for font_size in range(80, 44, -2):
+    # 從 76px 往下縮到 42px，找到能單行顯示的最大字體
+    f_title = _font(42)  # 預設最小
+    for font_size in range(76, 40, -2):
         f_title_try = _font(font_size)
         if draw.textbbox((0, 0), title, font=f_title_try)[2] <= title_max_w:
             f_title = f_title_try
             break
 
     ty = tag_y + tag_h + 56
-    draw.text((PAD, ty), title, font=f_title, fill=WHITE)
-    ty += _text_h(draw, title, f_title) + 52  # 標題下方留充足空白
+    title_lines = _wrap(draw, title, f_title, title_max_w)
+    for line in title_lines[:2]:  # 最多 2 行
+        draw.text((PAD, ty), line, font=f_title, fill=WHITE)
+        ty += _text_h(draw, line, f_title) + 8
+    ty += 36  # 標題下方空白
 
     # ── 橘色分隔線 ───────────────────────────────────────────
     draw.rectangle([PAD, ty, W - PAD, ty + 3], fill=ORANGE)
