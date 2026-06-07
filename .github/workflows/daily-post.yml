@@ -58,8 +58,9 @@ jobs:
           cp "每日內容/${TODAY}/images/${IMG_FILENAME}" /tmp/daily/${TODAY}/images/
           cp 每日內容/${TODAY}/log.json /tmp/daily/${TODAY}/
 
-          # 清除 working tree，讓 branch 切換不報錯
-          git checkout -- .
+          # 清除 working tree 與未追蹤檔，讓 branch 切換不報錯
+          git reset --hard HEAD
+          git clean -fd
 
           # 切換到 images 孤立分支
           git fetch origin images 2>/dev/null || true
