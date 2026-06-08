@@ -1,0 +1,32 @@
+{
+  "date": "2026.06.08",
+  "articles_fetched": 32,
+  "selected": {
+    "title": "李飛飛拆解「世界模型」3 大分類，Google、NVIDIA 談的世界模型不是同一件事？",
+    "source": "TechOrange",
+    "url": "https://techorange.com/2026/06/08/world-model-fei-fei-li-taxonomy/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss",
+    "pick_reason": "Fallback: sorted by popularity and content length."
+  },
+  "post_content": {
+    "category": "AI NEWS",
+    "title_zh": "李飛飛拆解「世界模型」3 大分類，G",
+    "key_stat": "",
+    "sections": [
+      {
+        "heading": "事件重點",
+        "body": "從 Google 的 Genie、NVIDIA 的 Cosmos，到機器人領域的 Visi"
+      },
+      {
+        "heading": "為何值得看",
+        "body": "它反映了 AI 產品與產業節奏正在持續加快。"
+      },
+      {
+        "heading": "接下來",
+        "body": "後續可觀察產品落地、使用者反應與市場擴散。"
+      }
+    ],
+    "caption": "今天看到一則值得注意的 AI 新聞：李飛飛拆解「世界模型」3 大分類，Google、NVIDIA 談的世界模型不是同一件事？"
+  },
+  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260608/images/featured_155342.png",
+  "source_url": "https://techorange.com/2026/06/08/world-model-fei-fei-li-taxonomy/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss"
+}
