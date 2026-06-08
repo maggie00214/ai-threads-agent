@@ -1,6 +1,6 @@
 name: Daily AI Threads Post Workflow
 
-on:
+"on":
   schedule:
     - cron: '7 12 * * *'
     - cron: '17 12 * * *'
@@ -158,4 +158,5 @@ jobs:
 
       - name: Report skipped run
         if: steps.check_today.outputs.already_posted == 'true'
-        run: echo "Skip publish. Today's post already exists: ${{ steps.check_today.outputs.existing_post_id }}"
+        run: |
+          echo "Skip publish. Today's post already exists: ${{ steps.check_today.outputs.existing_post_id }}"
