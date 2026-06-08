@@ -2,8 +2,13 @@ name: Daily AI Threads Post
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # 每天 UTC 12:00 = 台灣時間晚上 8 點
+    - cron: '7 12 * * *'   # 每天 UTC 12:07 = 台灣時間晚上 8:07
+    - cron: '17 12 * * *'  # 備援：每天 UTC 12:17 = 台灣時間晚上 8:17
   workflow_dispatch:        # 允許手動觸發
+
+concurrency:
+  group: daily-ai-threads-post
+  cancel-in-progress: false
 
 jobs:
   post:
@@ -31,7 +36,26 @@ jobs:
           sudo apt-get install -y fonts-noto-cjk
           echo "FONT_PATH=$(find /usr/share/fonts -name '*CJK*Regular*' | head -1)" >> $GITHUB_ENV
 
+      - name: Check whether today's post already exists
+        id: check_today
+        run: |
+          TODAY=$(date +%Y%m%d)
+          git fetch origin images --depth=1 2>/dev/null || true
+
+          if git show "origin/images:每日內容/${TODAY}/log.json" > /tmp/existing_log.json 2>/dev/null; then
+            POST_ID=$(python3 -c "import json; import sys; data=json.load(open('/tmp/existing_log.json', encoding='utf-8')); print(data.get('post_id', ''))")
+            if [ -n "$POST_ID" ]; then
+              echo "already_posted=true" >> "$GITHUB_OUTPUT"
+              echo "existing_post_id=$POST_ID" >> "$GITHUB_OUTPUT"
+              echo "Today's post already exists: $POST_ID"
+              exit 0
+            fi
+          fi
+
+          echo "already_posted=false" >> "$GITHUB_OUTPUT"
+
       - name: Generate content and image
+        if: steps.check_today.outputs.already_posted != 'true'
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           PYTHONUTF8: "1"
@@ -40,6 +64,7 @@ jobs:
           python agent.py --dry-run
 
       - name: Publish image to images branch
+        if: steps.check_today.outputs.already_posted != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -84,9 +109,11 @@ jobs:
           git checkout main
 
           # 還原剛才生成的 log.json（git checkout -- . 會把它清掉）
+          mkdir -p 每日內容/${TODAY}
           cp /tmp/daily/${TODAY}/log.json 每日內容/${TODAY}/log.json
 
       - name: Publish to Threads via API
+        if: steps.check_today.outputs.already_posted != 'true'
         env:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
@@ -95,3 +122,33 @@ jobs:
         run: |
           cd AI_Threads_Agent
           python publish_github.py
+
+      - name: Persist published log to images branch
+        if: steps.check_today.outputs.already_posted != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TODAY=$(date +%Y%m%d)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/maggie00214/ai-threads-agent.git
+
+          cp 每日內容/${TODAY}/log.json /tmp/daily/${TODAY}/published_log.json
+
+          git fetch origin images 2>/dev/null || true
+          if git ls-remote --exit-code origin images 2>/dev/null; then
+            git checkout -B images origin/images
+          else
+            git checkout --orphan images
+            git rm -rf .
+          fi
+
+          mkdir -p 每日內容/${TODAY}
+          cp /tmp/daily/${TODAY}/published_log.json 每日內容/${TODAY}/log.json
+          git add 每日內容/${TODAY}/log.json
+          git commit --allow-empty -m "Persist published log ${TODAY}"
+          git push --force origin images
+
+      - name: Report skipped run
+        if: steps.check_today.outputs.already_posted == 'true'
+        run: echo "Skip publish. Today's post already exists: ${{ steps.check_today.outputs.existing_post_id }}"
