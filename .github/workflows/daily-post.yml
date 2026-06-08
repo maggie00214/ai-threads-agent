@@ -5,6 +5,12 @@ on:
     - cron: '7 12 * * *'   # 每天 UTC 12:07 = 台灣時間晚上 8:07
     - cron: '17 12 * * *'  # 備援：每天 UTC 12:17 = 台灣時間晚上 8:17
   workflow_dispatch:        # 允許手動觸發
+    inputs:
+      force_publish:
+        description: '忽略今日已發文檢查，強制再跑一次'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: daily-ai-threads-post
@@ -40,6 +46,14 @@ jobs:
         id: check_today
         run: |
           TODAY=$(date +%Y%m%d)
+          FORCE_PUBLISH="${{ github.event.inputs.force_publish || 'false' }}"
+
+          if [ "$FORCE_PUBLISH" = "true" ]; then
+            echo "already_posted=false" >> "$GITHUB_OUTPUT"
+            echo "Force publish enabled. Skip duplicate check."
+            exit 0
+          fi
+
           git fetch origin images --depth=1 2>/dev/null || true
 
           if git show "origin/images:每日內容/${TODAY}/log.json" > /tmp/existing_log.json 2>/dev/null; then
