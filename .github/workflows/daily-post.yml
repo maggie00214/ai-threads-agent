@@ -141,6 +141,8 @@ jobs:
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/maggie00214/ai-threads-agent.git
 
           cp 每日內容/${TODAY}/log.json /tmp/daily/${TODAY}/published_log.json
+          git reset --hard HEAD
+          git clean -fd
 
           git fetch origin images 2>/dev/null || true
           if git ls-remote --exit-code origin images 2>/dev/null; then
