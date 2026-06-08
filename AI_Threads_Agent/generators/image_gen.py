@@ -1,244 +1,220 @@
 """
-圖卡生成模組 v3 — 雜誌封面式排版
-風格：深海軍藍底 + 橘色主調 + 電藍點綴
-核心邏輯：大標題 + 關鍵數字/短語 + 一段描述，留白多、人味強
+Generate orange-blue social news cards with fixed layout zones.
 """
 import os
 import re
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
+
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1080, 1080
 
-BG          = "#08091C"
-ORANGE      = "#FF6B2B"
-BLUE        = "#4A9EFF"
-WHITE       = "#F2F4FF"
-WHITE_DIM   = "#BCC5E0"
-GRAY        = "#5A6A90"
-GHOST_BG    = "#0D1020"
-DIVIDER     = "#1C2347"
+BG = "#07111F"
+PANEL = "#0E1728"
+PANEL_2 = "#111D33"
+LINE = "#26385A"
+ORANGE = "#FF7A1A"
+BLUE = "#4A94FF"
+ACCENT = "#FFD247"
+WHITE = "#F5F7FF"
+WHITE_SOFT = "#C8D2E6"
+MUTED = "#8FA0C1"
 
 FONT_PATH = os.environ.get("FONT_PATH", "")
 
 
-def _font(size: int) -> ImageFont.FreeTypeFont:
+def _font(size: int, bold: bool = False):
     candidates = []
     if FONT_PATH:
         candidates.append(FONT_PATH)
+    if bold:
+        candidates += [
+            "C:/Windows/Fonts/msjhbd.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/System/Library/Fonts/PingFang.ttc",
+        ]
     candidates += [
-        "C:/Windows/Fonts/msjhbd.ttc",
         "C:/Windows/Fonts/msjh.ttc",
-        "C:/Windows/Fonts/mingliu.ttc",
-        "/System/Library/Fonts/PingFang.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
     ]
-    for p in candidates:
-        if os.path.exists(p):
+    for path in candidates:
+        if os.path.exists(path):
             try:
-                return ImageFont.truetype(p, size)
+                return ImageFont.truetype(path, size)
             except Exception:
-                continue
+                pass
     return ImageFont.load_default()
 
 
-def _wrap(draw, text: str, font, max_w: int) -> List[str]:
-    tokens = re.findall(r"[A-Za-z0-9_.%$+\-]+|.", text)
-    lines, cur = [], ""
+def _wrap(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int) -> List[str]:
+    text = re.sub(r"\s+", " ", (text or "")).strip()
+    if not text:
+        return []
+    tokens = re.findall(r"[A-Za-z0-9_.%$+\-/:]+|.", text)
+    lines, current = [], ""
     for token in tokens:
-        test = cur + token
-        if draw.textbbox((0, 0), test, font=font)[2] > max_w and cur:
-            lines.append(cur)
-            cur = token
+        test = current + token
+        if draw.textbbox((0, 0), test, font=fnt)[2] <= max_w or not current:
+            current = test
         else:
-            cur = test
-    if cur:
-        lines.append(cur)
+            lines.append(current.strip())
+            current = token
+    if current:
+        lines.append(current.strip())
     return lines
 
 
-def _text_h(draw, text, font):
-    bb = draw.textbbox((0, 0), text, font=font)
-    return bb[3] - bb[1]
+def _line_h(draw: ImageDraw.ImageDraw, fnt, gap: int = 0) -> int:
+    box = draw.textbbox((0, 0), "測試Ag", font=fnt)
+    return box[3] - box[1] + gap
 
 
-def _draw_rounded_rect(draw, xy, radius, fill):
-    x0, y0, x1, y1 = xy
-    draw.rectangle([x0 + radius, y0, x1 - radius, y1], fill=fill)
-    draw.rectangle([x0, y0 + radius, x1, y1 - radius], fill=fill)
-    draw.ellipse([x0, y0, x0 + radius*2, y0 + radius*2], fill=fill)
-    draw.ellipse([x1 - radius*2, y0, x1, y0 + radius*2], fill=fill)
-    draw.ellipse([x0, y1 - radius*2, x0 + radius*2, y1], fill=fill)
-    draw.ellipse([x1 - radius*2, y1 - radius*2, x1, y1], fill=fill)
+def _fit_lines(draw: ImageDraw.ImageDraw, text: str, max_w: int, max_lines: int, start: int, minimum: int, bold: bool):
+    fallback_font = _font(minimum, bold)
+    fallback_lines = _wrap(draw, text, fallback_font, max_w)[:max_lines]
+    for size in range(start, minimum - 1, -2):
+        fnt = _font(size, bold)
+        lines = _wrap(draw, text, fnt, max_w)
+        if lines and len(lines) <= max_lines:
+            return fnt, lines
+    return fallback_font, fallback_lines
+
+
+def _draw_lines(draw, x: int, y: int, lines: List[str], fnt, fill: str, gap: int = 8) -> int:
+    for line in lines:
+        draw.text((x, y), line, font=fnt, fill=fill)
+        y += _line_h(draw, fnt, gap)
+    return y
+
+
+def _draw_centered_lines(draw, box, lines: List[str], fnt, fill: str, gap: int = 8) -> None:
+    x1, y1, x2, y2 = box
+    total_h = len(lines) * _line_h(draw, fnt, gap) - gap if lines else 0
+    y = y1 + max(0, (y2 - y1 - total_h) // 2)
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=fnt)
+        x = x1 + max(0, (x2 - x1 - (bbox[2] - bbox[0])) // 2)
+        draw.text((x, y), line, font=fnt, fill=fill)
+        y += _line_h(draw, fnt, gap)
+
+
+def _badge(draw, text: str, x: int, y: int, fill: str, text_fill: str) -> int:
+    text = (text or "").strip()
+    fnt = _font(24, bold=True)
+    bbox = draw.textbbox((0, 0), text, font=fnt)
+    w = bbox[2] - bbox[0] + 34
+    h = bbox[3] - bbox[1] + 22
+    draw.rounded_rectangle([x, y, x + w, y + h], radius=14, fill=fill)
+    draw.text((x + 17, y + 8), text, font=fnt, fill=text_fill)
+    return x + w + 12
 
 
 def _draw_glow(img: Image.Image, cx: int, cy: int, color_hex: str, radius: int, strength: float):
-    """在指定位置畫一個柔和的光暈"""
     r, g, b = int(color_hex[1:3], 16), int(color_hex[3:5], 16), int(color_hex[5:7], 16)
-    bg_r, bg_g, bg_b = int(BG[1:3], 16), int(BG[3:5], 16), int(BG[5:7], 16)
-    glow_layer = img.copy()
-    draw = ImageDraw.Draw(glow_layer)
-    steps = 30
-    for i in range(steps, 0, -1):
-        t = (i / steps) ** 2
-        alpha = int(strength * t * 255)
-        cr = int(bg_r + (r - bg_r) * alpha / 255)
-        cg = int(bg_g + (g - bg_g) * alpha / 255)
-        cb = int(bg_b + (b - bg_b) * alpha / 255)
-        r_cur = int(radius * i / steps)
-        draw.ellipse([cx - r_cur, cy - r_cur, cx + r_cur, cy + r_cur], fill=(cr, cg, cb))
-    return Image.blend(img, glow_layer, 0.55)
+    layer = img.copy()
+    draw = ImageDraw.Draw(layer)
+    for i in range(18, 0, -1):
+        alpha = int(255 * strength * (i / 18) ** 2)
+        rr = int(radius * i / 18)
+        color = (r, g, b)
+        draw.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=color)
+    return Image.blend(img, layer, 0.10)
+
+
+def _safe_text(value: str, fallback: str) -> str:
+    value = re.sub(r"\s+", " ", (value or "")).strip()
+    return value or fallback
+
+
+def _draw_info_card(draw, box, heading: str, body: str, accent: str) -> None:
+    x1, y1, x2, y2 = box
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=22, fill=PANEL_2, outline=LINE, width=2)
+    draw.rectangle([x1 + 24, y1 + 28, x1 + 30, y2 - 28], fill=accent)
+
+    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 76, 1, 28, 22, True)
+    body_font, body_lines = _fit_lines(draw, body, x2 - x1 - 76, 3, 32, 24, False)
+    y = y1 + 26
+    y = _draw_lines(draw, x1 + 48, y, heading_lines, heading_font, accent, 6)
+    _draw_lines(draw, x1 + 48, y + 10, body_lines, body_font, WHITE, 8)
 
 
 def generate_featured_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
-    """
-    雜誌封面式圖卡：
-    - 上區：類別膠囊 + 日期
-    - 中上：超大主標題（留白呼吸感）
-    - 中：橘色分隔線
-    - 中下：key_stat 大數字（如有）
-    - 下：核心描述段落（寬鬆行距）
-    - 底：來源 + handle
-    """
     img = Image.new("RGB", (W, H), BG)
-
-    # 左下橘色光暈
-    img = _draw_glow(img, cx=0, cy=H, color_hex=ORANGE, radius=520, strength=0.18)
-    # 右上藍色光暈（輕）
-    img = _draw_glow(img, cx=W, cy=0, color_hex=BLUE, radius=380, strength=0.10)
-
     draw = ImageDraw.Draw(img)
-    PAD = 72
 
-    # ── 頂部橘線 ─────────────────────────────────────────────
-    draw.rectangle([0, 0, W, 6], fill=ORANGE)
+    margin = 48
+    draw.rounded_rectangle([margin, margin, W - margin, H - margin], radius=30, fill=PANEL, outline=LINE, width=2)
+    draw.rectangle([margin, margin, W - margin, margin + 12], fill=ORANGE)
 
-    # ── 字型 ─────────────────────────────────────────────────
-    f_tag    = _font(22)
-    f_date   = _font(20)
-    f_title  = _font(80)    # 主標題：超大
-    f_stat   = _font(110)   # 關鍵數字：巨大
-    f_stat_label = _font(26)
-    f_body   = _font(34)    # 正文：舒服閱讀大小
-    f_footer = _font(22)
+    category = _safe_text(post.get("category", "AI NEWS"), "AI NEWS").upper()[:12]
+    angle = _safe_text(post.get("angle", ""), "")
+    title = _safe_text(post.get("title_zh", ""), "今日 AI 重點")
+    subtitle = _safe_text(post.get("subtitle_zh", ""), "這則更新和一般使用者有關")
+    hook = _safe_text(post.get("hook_line", ""), "")
+    blocks = post.get("insight_blocks", [])[:2]
 
-    # ── 類別標籤（橘色圓角膠囊）────────────────────────────
-    category = post.get("category", "AI NEWS").upper()
-    tag_pad_x, tag_pad_y = 18, 9
-    tag_w = draw.textbbox((0, 0), category, font=f_tag)[2] + tag_pad_x * 2
-    tag_h = draw.textbbox((0, 0), category, font=f_tag)[3] + tag_pad_y * 2 + 4
-    tag_y = 36
-    _draw_rounded_rect(draw, [PAD, tag_y, PAD + tag_w, tag_y + tag_h], radius=12, fill=ORANGE)
-    draw.text((PAD + tag_pad_x, tag_y + tag_pad_y), category, font=f_tag, fill=WHITE)
+    x = 82
+    y = 86
+    x = _badge(draw, category, x, y, ORANGE, WHITE)
+    if angle:
+        _badge(draw, angle[:16], x, y, "#152746", BLUE)
 
-    # 日期（右上，藍色）
-    date_w = draw.textbbox((0, 0), date_str, font=f_date)[2]
-    draw.text((W - PAD - date_w, tag_y + tag_pad_y + 2), date_str, font=f_date, fill=BLUE)
+    title_font, title_lines = _fit_lines(draw, title, W - 164, 2, 74, 48, True)
+    _draw_lines(draw, 82, 188, title_lines, title_font, WHITE, 10)
 
-    # ── 主標題（智慧縮放：優先一行，換行時第二行不能 < 2 字）─
-    title = post.get("title_zh", "")
-    title_max_w = W - PAD * 2
+    subtitle_font, subtitle_lines = _fit_lines(draw, subtitle, W - 164, 2, 38, 28, True)
+    _draw_lines(draw, 84, 360, subtitle_lines, subtitle_font, WHITE_SOFT, 8)
 
-    def _pick_title_font(t, max_w):
-        """找最大字體讓標題符合以下條件之一：
-        (a) 剛好一行，或
-        (b) 兩行且第二行 >= 2 字
-        若縮到 32px 仍不符合，直接用 32px
-        """
-        best = _font(32)
-        for fs in range(76, 30, -2):
-            f = _font(fs)
-            lines = _wrap(draw, t, f, max_w)
-            if len(lines) == 1:
-                return f          # 完美：單行
-            if len(lines) == 2 and len(lines[1].strip()) >= 2:
-                best = f          # 可接受：兩行且第二行夠長，繼續看有沒有更大能塞一行
-            elif len(lines) == 2 and len(lines[1].strip()) < 2:
-                continue          # 第二行太短，繼續縮
-        return best
+    hook_text = hook or "這次重點先看懂"
+    hook_font, hook_lines = _fit_lines(draw, hook_text, W - 210, 2, 48, 32, True)
+    hook_box = [82, 470, W - 82, 598]
+    draw.rounded_rectangle(hook_box, radius=24, fill="#18243A", outline=LINE, width=2)
+    draw.rectangle([hook_box[0] + 26, hook_box[1] + 28, hook_box[0] + 34, hook_box[3] - 28], fill=ACCENT)
+    _draw_centered_lines(draw, [hook_box[0] + 48, hook_box[1], hook_box[2] - 28, hook_box[3]], hook_lines, hook_font, ACCENT, 8)
 
-    f_title = _pick_title_font(title, title_max_w)
-    title_lines = _wrap(draw, title, f_title, title_max_w)
+    if not blocks:
+        blocks = [
+            {"heading": "你該知道", "body": subtitle},
+            {"heading": "怎麼用", "body": "如果你有在用相關工具，先留意這次變動。"},
+        ]
 
-    ty = tag_y + tag_h + 56
-    for line in title_lines[:2]:
-        draw.text((PAD, ty), line, font=f_title, fill=WHITE)
-        ty += _text_h(draw, line, f_title) + 8
-    ty += 36
+    card_y = 650
+    _draw_info_card(
+        draw,
+        [82, card_y, W - 82, card_y + 134],
+        _safe_text(blocks[0].get("heading", ""), "重點")[:10],
+        _safe_text(blocks[0].get("body", ""), "這則更新值得先記下來。")[:42],
+        BLUE,
+    )
+    if len(blocks) > 1:
+        _draw_info_card(
+            draw,
+            [82, card_y + 158, W - 82, card_y + 292],
+            _safe_text(blocks[1].get("heading", ""), "提醒")[:10],
+            _safe_text(blocks[1].get("body", ""), "常用 AI 工具的人可以先注意。")[:42],
+            ORANGE,
+        )
 
-    # ── 橘色分隔線 ───────────────────────────────────────────
-    draw.rectangle([PAD, ty, W - PAD, ty + 3], fill=ORANGE)
-    ty += 56  # 分隔線下方也留空
-
-    # ── 關鍵數字/短語（如果有 key_stat）────────────────────
-    key_stat = post.get("key_stat", "")
-    if key_stat:
-        stat_lines = _wrap(draw, key_stat, f_stat, W - PAD * 2)
-        for line in stat_lines[:1]:
-            draw.text((PAD, ty), line, font=f_stat, fill=ORANGE)
-            ty += _text_h(draw, line, f_stat) + 8
-        ty += 44  # 數字下方留大空白再接正文
-
-    # ── 核心描述段落 ─────────────────────────────────────────
-    # 取三個 section 合併成一段流暢敘述，或直接用 sections[0].body
-    sections = post.get("sections", [])
-
-    # 組合敘述：heading 白色 + body 灰藍色，各段之間有行距
-    available_h = H - 90 - ty   # 底部留給 footer
-    for i, sec in enumerate(sections[:3]):
-        heading = sec.get("heading", "")
-        body    = sec.get("body", "")
-
-        if not heading and not body:
-            continue
-
-        # 藍色左側細條（4px）
-        block_start = ty
-
-        # Heading（白色，較大）
-        if heading:
-            h_lines = _wrap(draw, heading, f_body, W - PAD * 2 - 20)
-            draw.rectangle([PAD, ty, PAD + 4, ty + _text_h(draw, h_lines[0], f_body) + 6], fill=BLUE)
-            for line in h_lines[:1]:
-                draw.text((PAD + 18, ty), line, font=f_body, fill=WHITE)
-                ty += _text_h(draw, line, f_body) + 6
-
-        # Body（藍灰色，縮進）
-        if body:
-            b_lines = _wrap(draw, body, f_body, W - PAD * 2 - 20)
-            for line in b_lines[:2]:
-                draw.text((PAD + 18, ty), line, font=f_body, fill=WHITE_DIM)
-                ty += _text_h(draw, line, f_body) + 6
-
-        # 更新左側條高度
-        draw.rectangle([PAD, block_start, PAD + 4, ty], fill=BLUE)
-
-        ty += 30   # 段落間距（寬鬆）
-
-        # 不要超出底部
-        if ty > H - 120:
-            break
-
-    # ── 底部 footer ──────────────────────────────────────────
-    footer_y = H - 68
-    draw.rectangle([0, footer_y, W, footer_y + 2], fill=DIVIDER)
-
-    # 左：來源
-    draw.text((PAD, footer_y + 16), f"來源：{source}", font=f_footer, fill=GRAY)
-    # 右：handle（橘色）
-    handle = "@metaspax"
-    handle_w = draw.textbbox((0, 0), handle, font=f_footer)[2]
-    draw.text((W - PAD - handle_w, footer_y + 16), handle, font=f_footer, fill=ORANGE)
+    footer_y = H - 112
+    draw.rectangle([82, footer_y - 20, W - 82, footer_y - 18], fill=LINE)
+    small = _font(22, bold=True)
+    source_text = f"SOURCE  {source.upper()[:26]}"
+    draw.text((82, footer_y), source_text, font=small, fill=MUTED)
+    date_w = draw.textbbox((0, 0), date_str, font=small)[2]
+    draw.text((W - 82 - date_w, footer_y), date_str, font=small, fill=MUTED)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     img.save(output_path, "PNG")
-    print(f"[Image] 圖卡已儲存：{output_path}")
+    print(f"[Image] saved: {output_path}")
     return output_path
 
 
 def generate_all_images(post_content: Dict, source: str, date_str: str, output_dir: str) -> List[str]:
     from datetime import datetime
+
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%H%M%S")
     card_path = str(Path(output_dir) / f"featured_{ts}.png")
