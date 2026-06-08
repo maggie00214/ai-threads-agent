@@ -1,6 +1,6 @@
 {
   "date": "2026.06.08",
-  "articles_fetched": 32,
+  "articles_fetched": 33,
   "selected": {
     "title": "李飛飛拆解「世界模型」3 大分類，Google、NVIDIA 談的世界模型不是同一件事？",
     "source": "TechOrange",
@@ -27,6 +27,6 @@
     ],
     "caption": "今天看到一則值得注意的 AI 新聞：李飛飛拆解「世界模型」3 大分類，Google、NVIDIA 談的世界模型不是同一件事？"
   },
-  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260608/images/featured_155342.png",
+  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260608/images/featured_162230.png",
   "source_url": "https://techorange.com/2026/06/08/world-model-fei-fei-li-taxonomy/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss"
 }
