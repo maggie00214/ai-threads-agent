@@ -1,0 +1,32 @@
+{
+  "date": "2026.06.11",
+  "articles_fetched": 45,
+  "selected": {
+    "title": "科技業國家級網攻逾 58% 來自中國駭客，CrowdStrike 警告 AI 核心技術成首要目標",
+    "source": "TechOrange",
+    "url": "https://techorange.com/2026/06/11/crowdstrike-warns-of-increasing-chinese-ai-cyberattacks-on-us-tech/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss",
+    "pick_reason": "Fallback: sorted by popularity and content length."
+  },
+  "post_content": {
+    "category": "AI NEWS",
+    "title_zh": "科技業國家級網攻逾 58% 來自中國",
+    "key_stat": "",
+    "sections": [
+      {
+        "heading": "事件重點",
+        "body": "資安大廠 CrowdStrike 近日發布《2026 Technology Threat "
+      },
+      {
+        "heading": "為何值得看",
+        "body": "它反映了 AI 產品與產業節奏正在持續加快。"
+      },
+      {
+        "heading": "接下來",
+        "body": "後續可觀察產品落地、使用者反應與市場擴散。"
+      }
+    ],
+    "caption": "今天看到一則值得注意的 AI 新聞：科技業國家級網攻逾 58% 來自中國駭客，CrowdStrike 警告 AI 核心技術成首要目標"
+  },
+  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260611/images/featured_161815.png",
+  "source_url": "https://techorange.com/2026/06/11/crowdstrike-warns-of-increasing-chinese-ai-cyberattacks-on-us-tech/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss"
+}
