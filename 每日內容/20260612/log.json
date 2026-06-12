@@ -1,0 +1,32 @@
+{
+  "date": "2026.06.12",
+  "articles_fetched": 37,
+  "selected": {
+    "title": "台灣 AI 動能指數居亞洲之冠，但鄧白氏點出最大挑戰：資料與系統整合",
+    "source": "TechOrange",
+    "url": "https://techorange.com/2026/06/12/dun-bradstreet-taiwan-ai/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss",
+    "pick_reason": "Fallback: sorted by popularity and content length."
+  },
+  "post_content": {
+    "category": "AI NEWS",
+    "title_zh": "台灣 AI 動能指數居亞洲之冠，但鄧",
+    "key_stat": "",
+    "sections": [
+      {
+        "heading": "事件重點",
+        "body": "台灣企業的 AI 動能，正以亞洲最快的速度往前衝，但是卻卡在最基礎的數據問題。美商鄧白氏（"
+      },
+      {
+        "heading": "為何值得看",
+        "body": "它反映了 AI 產品與產業節奏正在持續加快。"
+      },
+      {
+        "heading": "接下來",
+        "body": "後續可觀察產品落地、使用者反應與市場擴散。"
+      }
+    ],
+    "caption": "今天看到一則值得注意的 AI 新聞：台灣 AI 動能指數居亞洲之冠，但鄧白氏點出最大挑戰：資料與系統整合"
+  },
+  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260612/images/featured_153441.png",
+  "source_url": "https://techorange.com/2026/06/12/dun-bradstreet-taiwan-ai/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss"
+}
