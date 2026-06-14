@@ -1,30 +1,43 @@
 """
-AI Threads Agent — 主流程
-每日自動：爬蟲 → 精選最熱議一篇 → 生圖 → 發布到 Threads
+AI Threads Agent entrypoint.
 """
-import os
-import sys
+import argparse
 import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-import argparse
-from datetime import datetime
-from pathlib import Path
-from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).with_name(".env"))
 
+from generators.image_gen import generate_all_images
+from processors.ai_filter import generate_post_content, pick_top_article
+from publishers.threads import post_reply, publish_single
 from scrapers.ptt import scrape_ptt
 from scrapers.rss import scrape_rss
-from processors.ai_filter import pick_top_article, generate_post_content
-from generators.image_gen import generate_all_images
-from publishers.threads import publish_single
 
-# ── 設定 ──────────────────────────────────────────────────────
-MIN_PUSHES = 20     # PTT 最低推文數
-DAYS_BACK = 1       # 爬取幾天內的文章
+MIN_PUSHES = 20
+DAYS_BACK = 1
 DAILY_BASE = Path(__file__).parent.parent / "每日內容"
+
+
+def _load_seen_urls(log_path: Path) -> list[str]:
+    if not log_path.exists():
+        return []
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            log = json.load(f)
+        seen_urls = log.get("seen_urls", [])
+        previous_source_url = log.get("source_url", "") or log.get("selected", {}).get("url", "")
+        if previous_source_url and previous_source_url not in seen_urls:
+            seen_urls.append(previous_source_url)
+        return [url for url in seen_urls if url]
+    except Exception:
+        return []
 
 
 def run(dry_run: bool = False, skip_publish: bool = False):
@@ -34,90 +47,107 @@ def run(dry_run: bool = False, skip_publish: bool = False):
     output_dir = date_folder / "images"
     date_folder.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"  AI Threads Agent 啟動  {today_str}")
-    print(f"{'='*50}\n")
+    print(f"{'=' * 50}\n")
 
-    # ── Step 1: 爬蟲 ──────────────────────────────────────────
     print("[Step 1] 開始爬蟲...")
-    ptt_articles = scrape_ptt(min_pushes=MIN_PUSHES, days_back=DAYS_BACK)
-    rss_articles = scrape_rss(days_back=DAYS_BACK)
-    all_articles = ptt_articles + rss_articles
-    print(f"  → 共取得 {len(all_articles)} 篇文章")
+    all_articles = scrape_ptt(min_pushes=MIN_PUSHES, days_back=DAYS_BACK) + scrape_rss(days_back=DAYS_BACK)
 
+    log_path = date_folder / "log.json"
+    seen_urls = _load_seen_urls(log_path)
+    if seen_urls:
+        filtered_articles = [article for article in all_articles if article.get("url", "") not in seen_urls]
+        if filtered_articles:
+            print(f"  → 排除本日已選文章 {len(seen_urls)} 篇")
+            all_articles = filtered_articles
+
+    print(f"  → 共取得 {len(all_articles)} 篇文章")
     if not all_articles:
-        print("[錯誤] 沒有抓到任何文章，請檢查網路連線或爬蟲設定")
+        print("[錯誤] 找不到可用文章，請稍後再試。")
         sys.exit(1)
 
-    # ── Step 2: 精選最熱議一篇 ────────────────────────────────
-    print(f"\n[Step 2] 精選最熱議文章...")
+    print("\n[Step 2] 精選文章...")
     top = pick_top_article(all_articles)
-    print(f"  → 選出：{top.get('title', '')[:50]}")
-    print(f"  → 來源：{top.get('source', '')}  理由：{top.get('pick_reason', '')}")
+    source_url = top.get("url", "")
+    source_name = top.get("source", "")
+    print(f"  → 選出：{top.get('title', '')[:60]}")
+    print(f"  → 來源：{source_name}  理由：{top.get('pick_reason', '')}")
 
-    # ── Step 3: 生成繁中文案 ───────────────────────────────────
-    print(f"\n[Step 3] 生成繁體中文發文內容...")
+    print("\n[Step 3] 生成貼文內容...")
     post_content = generate_post_content(top, today_str)
-    print(f"  圖片標題：{post_content.get('image_title')}")
-    print(f"  Threads 主文預覽：\n  {post_content.get('caption', '')[:120]}...")
-
+    print(f"  → Caption 預覽：{post_content.get('caption', '')[:120]}...")
     if dry_run:
         print("\n[Dry Run] 完整文案：")
         print(json.dumps(post_content, ensure_ascii=False, indent=2))
 
-    # ── Step 4: 生成圖片 ────────────────────────────────────────
-    print(f"\n[Step 4] 生成圖卡...")
+    print("\n[Step 4] 生成圖卡...")
     image_paths = generate_all_images(
         post_content,
-        source=top.get("source", ""),
+        source=source_name,
         date_str=today_str,
-        output_dir=str(output_dir)
+        output_dir=str(output_dir),
     )
     print(f"  → 圖片：{image_paths[0]}")
 
-    # ── Step 5: 發布到 Threads ─────────────────────────────────
+    post_id = ""
+    reply_id = ""
     if skip_publish or dry_run:
-        print(f"\n[Step 5] 跳過發布")
-        print(f"  主文：\n{post_content.get('caption')}")
+        print("\n[Step 5] 跳過發布")
+        print(f"  主文：\n{post_content.get('caption', '')}")
     else:
-        print(f"\n[Step 5] 發布到 Threads...")
+        print("\n[Step 5] 發布到 Threads...")
         caption = post_content.get("caption", "")
         post_id = publish_single(image_paths[0], caption)
         print(f"  → 發布成功！Post ID: {post_id}")
+        if source_url or source_name:
+            reply_lines = []
+            if source_name:
+                reply_lines.append(f"來源：{source_name}")
+            if source_url:
+                reply_lines.append(source_url)
+            reply_text = "\n".join(reply_lines)
+            reply_id = post_reply(post_id, reply_text)
+            print(f"  → 來源留言成功！Reply ID: {reply_id}")
 
-    # ── 儲存執行記錄 ───────────────────────────────────────────
-    log_path = date_folder / "log.json"
-    source_url = top.get("url", "")
+    updated_seen_urls = []
+    for url in seen_urls + [source_url]:
+        if url and url not in updated_seen_urls:
+            updated_seen_urls.append(url)
+
     with open(log_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "date": today_str,
-            "articles_fetched": len(all_articles),
-            "selected": {
-                "title": top.get("title"),
-                "source": top.get("source"),
-                "url": source_url,
-                "pick_reason": top.get("pick_reason"),
+        json.dump(
+            {
+                "date": today_str,
+                "articles_fetched": len(all_articles),
+                "selected": {
+                    "title": top.get("title"),
+                    "source": source_name,
+                    "url": source_url,
+                    "pick_reason": top.get("pick_reason"),
+                },
+                "post_content": post_content,
+                "image_path": str(image_paths[0]),
+                "source_url": source_url,
+                "seen_urls": updated_seen_urls,
+                "post_id": post_id,
+                "reply_id": reply_id,
             },
-            "post_content": post_content,
-            "image_path": str(image_paths[0]),
-            "source_url": source_url,
-        }, f, ensure_ascii=False, indent=2)
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
 
-    # 輸出來源 URL，供瀏覽器自動化留言使用
     print(f"\n[來源 URL] {source_url}")
-
     print(f"\n[記錄] 儲存至：{log_path}")
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"  完成！{today_str} 精選文章已就緒")
-    print(f"{'='*50}\n")
+    print(f"{'=' * 50}\n")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Threads Agent")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="完整執行但不發布到 Threads")
-    parser.add_argument("--skip-publish", action="store_true",
-                        help="生成圖片但不發布")
+    parser.add_argument("--dry-run", action="store_true", help="產生內容但不發布")
+    parser.add_argument("--skip-publish", action="store_true", help="只生成圖文，不發布")
     args = parser.parse_args()
-
     run(dry_run=args.dry_run, skip_publish=args.skip_publish)

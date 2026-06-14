@@ -134,8 +134,8 @@ def _draw_info_card(draw, box, heading: str, body: str, accent: str) -> None:
     draw.rounded_rectangle([x1, y1, x2, y2], radius=22, fill=PANEL_2, outline=LINE, width=2)
     draw.rectangle([x1 + 24, y1 + 28, x1 + 30, y2 - 28], fill=accent)
 
-    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 76, 1, 28, 22, True)
-    body_font, body_lines = _fit_lines(draw, body, x2 - x1 - 76, 3, 32, 24, False)
+    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 76, 1, 27, 21, True)
+    body_font, body_lines = _fit_lines(draw, body, x2 - x1 - 76, 2, 30, 22, False)
     y = y1 + 26
     y = _draw_lines(draw, x1 + 48, y, heading_lines, heading_font, accent, 6)
     _draw_lines(draw, x1 + 48, y + 10, body_lines, body_font, WHITE, 8)
@@ -181,10 +181,10 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
             {"heading": "怎麼用", "body": "如果你有在用相關工具，先留意這次變動。"},
         ]
 
-    card_y = 650
+    card_y = 626
     _draw_info_card(
         draw,
-        [82, card_y, W - 82, card_y + 134],
+        [82, card_y, W - 82, card_y + 142],
         _safe_text(blocks[0].get("heading", ""), "重點")[:10],
         _safe_text(blocks[0].get("body", ""), "這則更新值得先記下來。")[:42],
         BLUE,
@@ -192,7 +192,7 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     if len(blocks) > 1:
         _draw_info_card(
             draw,
-            [82, card_y + 158, W - 82, card_y + 292],
+            [82, card_y + 162, W - 82, card_y + 304],
             _safe_text(blocks[1].get("heading", ""), "提醒")[:10],
             _safe_text(blocks[1].get("body", ""), "常用 AI 工具的人可以先注意。")[:42],
             ORANGE,
