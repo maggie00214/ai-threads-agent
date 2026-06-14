@@ -138,14 +138,40 @@ def _card_body(text: str, limit: int = 32) -> str:
     return text[:limit].strip()
 
 
+def _ellipsize(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int) -> str:
+    text = re.sub(r"\s+", " ", (text or "")).strip()
+    if draw.textbbox((0, 0), text, font=fnt)[2] <= max_w:
+        return text
+
+    suffix = "..."
+    available = max_w - draw.textbbox((0, 0), suffix, font=fnt)[2]
+    kept = ""
+    for ch in text:
+        candidate = kept + ch
+        if draw.textbbox((0, 0), candidate, font=fnt)[2] > available:
+            break
+        kept = candidate
+    return (kept.rstrip() + suffix) if kept else suffix
+
+
+def _wrap_ellipsized(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int, max_lines: int) -> List[str]:
+    lines = _wrap(draw, text, fnt, max_w)
+    if len(lines) <= max_lines:
+        return lines
+    kept = lines[:max_lines]
+    kept[-1] = _ellipsize(draw, "".join([kept[-1], *lines[max_lines:]]), fnt, max_w)
+    return kept
+
+
 def _draw_info_card(draw, box, heading: str, body: str, accent: str) -> None:
     x1, y1, x2, y2 = box
     draw.rounded_rectangle([x1, y1, x2, y2], radius=18, fill=PANEL_2, outline=LINE, width=2)
     draw.rectangle([x1 + 22, y1 + 24, x1 + 28, y2 - 24], fill=accent)
 
     heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 74, 1, 24, 20, True)
-    body_font, body_lines = _fit_lines(draw, body, x2 - x1 - 74, 1, 28, 22, False)
-    heading_gap = 6
+    body_font = _font(25)
+    body_lines = _wrap_ellipsized(draw, body, body_font, x2 - x1 - 74, 2)
+    heading_gap = 5
     body_gap = 2
     total_h = len(heading_lines) * _line_h(draw, heading_font, 0)
     total_h += heading_gap
@@ -168,7 +194,7 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     title = _safe_text(post.get("title_zh", ""), "今日 AI 重點")
     subtitle = _safe_text(post.get("subtitle_zh", ""), "這則更新和一般使用者有關")
     hook = _safe_text(post.get("hook_line", ""), "")
-    blocks = post.get("insight_blocks", [])[:2]
+    blocks = post.get("insight_blocks", [])[:3]
 
     x = 82
     y = 86
@@ -207,7 +233,7 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
             draw,
             [82, card_y + idx * 124, W - 82, card_y + idx * 124 + 112],
             _safe_text(block.get("heading", ""), defaults[idx])[:10],
-            _card_body(block.get("body", "")),
+            _card_body(block.get("body", ""), 54),
             accents[idx],
         )
 
