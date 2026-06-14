@@ -129,16 +129,30 @@ def _safe_text(value: str, fallback: str) -> str:
     return value or fallback
 
 
+def _card_body(text: str, limit: int = 32) -> str:
+    text = _safe_text(text, "這則更新值得先記下來。")
+    for mark in ("；", "。", "，", "、"):
+        idx = text.find(mark)
+        if 10 <= idx <= limit:
+            return text[:idx].strip()
+    return text[:limit].strip()
+
+
 def _draw_info_card(draw, box, heading: str, body: str, accent: str) -> None:
     x1, y1, x2, y2 = box
-    draw.rounded_rectangle([x1, y1, x2, y2], radius=22, fill=PANEL_2, outline=LINE, width=2)
-    draw.rectangle([x1 + 24, y1 + 28, x1 + 30, y2 - 28], fill=accent)
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=18, fill=PANEL_2, outline=LINE, width=2)
+    draw.rectangle([x1 + 22, y1 + 24, x1 + 28, y2 - 24], fill=accent)
 
-    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 76, 1, 27, 21, True)
-    body_font, body_lines = _fit_lines(draw, body, x2 - x1 - 76, 2, 30, 22, False)
-    y = y1 + 26
-    y = _draw_lines(draw, x1 + 48, y, heading_lines, heading_font, accent, 6)
-    _draw_lines(draw, x1 + 48, y + 10, body_lines, body_font, WHITE, 8)
+    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 74, 1, 24, 20, True)
+    body_font, body_lines = _fit_lines(draw, body, x2 - x1 - 74, 1, 28, 22, False)
+    heading_gap = 6
+    body_gap = 2
+    total_h = len(heading_lines) * _line_h(draw, heading_font, 0)
+    total_h += heading_gap
+    total_h += len(body_lines) * _line_h(draw, body_font, body_gap) - body_gap
+    y = y1 + max(14, (y2 - y1 - total_h) // 2)
+    y = _draw_lines(draw, x1 + 46, y, heading_lines, heading_font, accent, 0)
+    _draw_lines(draw, x1 + 46, y + heading_gap, body_lines, body_font, WHITE, body_gap)
 
 
 def generate_featured_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
@@ -162,40 +176,39 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     if angle:
         _badge(draw, angle[:16], x, y, "#152746", BLUE)
 
-    title_font, title_lines = _fit_lines(draw, title, W - 164, 2, 74, 48, True)
-    _draw_lines(draw, 82, 188, title_lines, title_font, WHITE, 10)
+    title_font, title_lines = _fit_lines(draw, title, W - 164, 2, 68, 44, True)
+    _draw_lines(draw, 82, 176, title_lines, title_font, WHITE, 8)
 
-    subtitle_font, subtitle_lines = _fit_lines(draw, subtitle, W - 164, 2, 38, 28, True)
-    _draw_lines(draw, 84, 360, subtitle_lines, subtitle_font, WHITE_SOFT, 8)
+    subtitle_font, subtitle_lines = _fit_lines(draw, subtitle, W - 164, 2, 34, 25, True)
+    _draw_lines(draw, 84, 326, subtitle_lines, subtitle_font, WHITE_SOFT, 6)
 
     hook_text = hook or "這次重點先看懂"
-    hook_font, hook_lines = _fit_lines(draw, hook_text, W - 210, 2, 48, 32, True)
-    hook_box = [82, 470, W - 82, 598]
+    hook_font, hook_lines = _fit_lines(draw, hook_text, W - 210, 2, 44, 30, True)
+    hook_box = [82, 428, W - 82, 548]
     draw.rounded_rectangle(hook_box, radius=24, fill="#18243A", outline=LINE, width=2)
     draw.rectangle([hook_box[0] + 26, hook_box[1] + 28, hook_box[0] + 34, hook_box[3] - 28], fill=ACCENT)
     _draw_centered_lines(draw, [hook_box[0] + 48, hook_box[1], hook_box[2] - 28, hook_box[3]], hook_lines, hook_font, ACCENT, 8)
 
     if not blocks:
         blocks = [
-            {"heading": "你該知道", "body": subtitle},
-            {"heading": "怎麼用", "body": "如果你有在用相關工具，先留意這次變動。"},
+            {"heading": "核心", "body": subtitle},
+            {"heading": "影響", "body": "這會改變工具成本、資料風險或工作流程。"},
+            {"heading": "提醒", "body": "先看限制，再決定要不要跟進。"},
         ]
 
-    card_y = 626
-    _draw_info_card(
-        draw,
-        [82, card_y, W - 82, card_y + 142],
-        _safe_text(blocks[0].get("heading", ""), "重點")[:10],
-        _safe_text(blocks[0].get("body", ""), "這則更新值得先記下來。")[:42],
-        BLUE,
-    )
-    if len(blocks) > 1:
+    while len(blocks) < 3:
+        blocks.append({"heading": "提醒", "body": "常用 AI 工具的人可以先注意這次變動。"})
+
+    card_y = 570
+    accents = [BLUE, ORANGE, ACCENT]
+    defaults = ["核心", "影響", "提醒"]
+    for idx, block in enumerate(blocks[:3]):
         _draw_info_card(
             draw,
-            [82, card_y + 162, W - 82, card_y + 304],
-            _safe_text(blocks[1].get("heading", ""), "提醒")[:10],
-            _safe_text(blocks[1].get("body", ""), "常用 AI 工具的人可以先注意。")[:42],
-            ORANGE,
+            [82, card_y + idx * 124, W - 82, card_y + idx * 124 + 112],
+            _safe_text(block.get("heading", ""), defaults[idx])[:10],
+            _card_body(block.get("body", "")),
+            accents[idx],
         )
 
     footer_y = H - 112

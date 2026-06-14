@@ -61,31 +61,18 @@ def _clean_short_text(text: str, limit: int) -> str:
     return text[:limit]
 
 
-def _clean_caption(text: str, limit: int) -> str:
-    text = re.sub(r"\s+", " ", text).strip()
+def _clean_caption(text: str, limit: int = 520) -> str:
+    text = re.sub(r"[ \t]+", " ", text).strip()
+    text = re.sub(r"\n{3,}", "\n\n", text)
     if len(text) <= limit:
         return text
 
-    sentences = re.split(r"(?<=[。！？!?])\s*", text)
-    kept = ""
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if not sentence:
-            continue
-        candidate = f"{kept} {sentence}".strip() if kept else sentence
-        if len(candidate) <= limit:
-            kept = candidate
-        else:
-            break
-    if kept:
-        return kept
-
-    shortened = text[:limit].rstrip()
-    cut_points = [shortened.rfind(mark) for mark in ("。", "？", "！", ".", "?", "!", "，", ",")]
+    clipped = text[:limit].rstrip()
+    cut_points = [clipped.rfind(mark) for mark in ("。", "？", "！", "?", "!", "\n")]
     best_cut = max(cut_points)
-    if best_cut >= max(18, limit // 3):
-        return shortened[: best_cut + 1].strip()
-    return shortened
+    if best_cut >= max(120, limit // 2):
+        return clipped[: best_cut + 1].strip()
+    return clipped.strip()
 
 
 def pick_top_article(articles: List[Dict]) -> Dict:
@@ -180,55 +167,51 @@ def generate_post_content(article: Dict, today_str: str) -> Dict:
 
 請只輸出 JSON，包含以下 keys：
 - category: 從 "AI NEWS"、"TOOLS"、"SECURITY"、"WORKFLOW"、"PRICING"、"TIPS" 中選一個
-- title_zh: 16 字內，直接點出重點
-- subtitle_zh: 22 字內，補上影響或適用對象
-- hook_line: 14 字內，一句最值得停下來看的話
-- insight_blocks: 1 到 2 個，每個包含 heading 與 body
+- title_zh: 18 字內，必須像爆文封面標題，直擊痛點或反直覺
+- subtitle_zh: 24 字內，補上影響、對象或趨勢
+- hook_line: 24 字內，語不驚人死不休；可用痛點、反直覺觀點或強烈提問
+- insight_blocks: 必須剛好 3 個，每個包含 heading 與 body
   - heading: 8 字內
-  - body: 32 字內
-  - 至少其中一個 block 要偏「你可以怎麼看 / 怎麼用 / 要注意什麼」
-- caption: 100 字內，2 到 4 句
+  - body: 54 字內
+  - 三個段落分別要講「核心事實 / 為什麼重要 / 如何影響或怎麼做」
+- caption: 260 到 520 字，必須多換行，像專家朋友在分享
 - angle: 16 字內，說這篇貼文的切角，例如「省錢資訊」、「上班族實用」、「帳號安全」
 
 caption 規則：
-1. 第一段先講發生什麼事，用白話翻譯
-2. 第二段直接翻成對讀者有什麼用，或誰最該注意
-3. 如果有條件、限制、到期日、適用範圍，請明講
-4. 最後一句可以是提醒、建議，或自然提問
-5. 不要 hashtag
-6. 不要新聞稿口吻
-7. 用繁體中文
-8. 如果這篇偏功能更新，請寫出怎麼用
-9. 如果這篇偏安全風險，請寫出該注意什麼
-10. 如果這篇偏價格或額度，請寫出誰受益、要不要現在做
-11. 優先用「你 / 如果你 / 記得 / 可以先 / 我覺得」這種口吻
-12. 可以像真人補充一句「很多人可能沒注意到…」「如果你平常有在用…」
-13. 不能只寫一行短句；要有資訊密度，但整體不要超過 100 字
-14. 優先寫成 3 句：發生什麼事、對誰有用、現在該注意什麼
+1. 黃金前三秒：第一句必須很有衝擊，讓人停下來；不要平鋪直敘
+2. 第二段開始用 3 個條列段落，每段都要講清楚「為什麼」或「如何影響」
+3. 條列格式請用「1.」「2.」「3.」，每點 1 到 2 句
+4. 語氣像專家朋友，不要新聞稿，不要官腔
+5. 多換行，讓 Threads 好讀
+6. 適度加入 2 到 3 個 emoji，但不要塞滿
+7. 最後必須丟出一個有爭議、能逼大家表態的問題
+8. 不要 hashtag
+9. 用繁體中文
+10. 不要捏造原文沒有的數據；如果原文沒數字，就講趨勢和影響
 """.strip()
 
     try:
         raw = _ask(prompt)
         data = _parse_json(raw)
-        data["title_zh"] = _clean_short_text(data.get("title_zh", ""), 16)
-        data["subtitle_zh"] = _clean_short_text(data.get("subtitle_zh", ""), 22)
-        data["hook_line"] = _clean_short_text(data.get("hook_line", ""), 14)
+        data["title_zh"] = _clean_short_text(data.get("title_zh", ""), 18)
+        data["subtitle_zh"] = _clean_short_text(data.get("subtitle_zh", ""), 24)
+        data["hook_line"] = _clean_short_text(data.get("hook_line", ""), 24)
         data["angle"] = _clean_short_text(data.get("angle", ""), 16)
 
         blocks = data.get("insight_blocks", [])
         cleaned_blocks = []
-        for block in blocks[:2]:
+        for block in blocks[:3]:
             cleaned_blocks.append(
                 {
                     "heading": _clean_short_text(block.get("heading", ""), 8),
-                    "body": _clean_short_text(block.get("body", ""), 32),
+                    "body": _clean_short_text(block.get("body", ""), 54),
                 }
             )
         data["insight_blocks"] = cleaned_blocks
 
         if "caption" in data:
             caption = re.sub(r"#\S+", "", data["caption"]).strip()
-            data["caption"] = _clean_caption(caption, 100)
+            data["caption"] = _clean_caption(caption)
         return data
     except Exception as e:
         print(f"[AI Filter] generate_post_content failed: {e}")
@@ -238,14 +221,18 @@ caption 規則：
             "category": "AI NEWS",
             "title_zh": _clean_short_text(title, 16) or "今日 AI 焦點",
             "subtitle_zh": "這則更新和一般使用者直接有關",
-            "hook_line": "",
+            "hook_line": "別只看新聞標題",
             "angle": "實用資訊",
             "insight_blocks": [
-                {"heading": "重點", "body": _clean_short_text(summary_text, 32) or "今天有一則和 AI 使用直接相關的消息。"},
-                {"heading": "你該看", "body": "如果你平常有在用 AI 工具，這則值得先記下來。"},
+                {"heading": "核心", "body": _clean_short_text(summary_text, 54) or "今天有一則和 AI 使用直接相關的消息。"},
+                {"heading": "影響", "body": "如果你平常有在用 AI 工具，這會改變你的使用成本或工作方式。"},
+                {"heading": "提醒", "body": "先看清楚限制、適用範圍，再決定要不要跟進。"},
             ],
             "caption": _clean_caption(
-                f"{title}。如果你平常有在用 AI 工具，這則資訊和你的使用方式直接有關。建議先記起來。",
-                100,
+                f"這則 AI 消息不要只滑過，後面可能會影響你每天怎麼用工具。\n\n"
+                f"1. 核心重點：{title}。\n\n"
+                f"2. 為什麼重要：如果你平常有在用 AI 工具，這可能會改變你的成本、效率或資料風險。\n\n"
+                f"3. 你可以怎麼做：先看清楚限制與適用範圍，再決定要不要跟進。\n\n"
+                f"你覺得 AI 工具現在是在幫大家省時間，還是在把大家綁進更貴的工作流程？",
             ),
         }
