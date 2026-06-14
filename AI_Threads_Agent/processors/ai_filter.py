@@ -127,6 +127,12 @@ def _make_blocks_distinct(blocks: List[Dict[str, str]]) -> List[Dict[str, str]]:
         if key:
             seen.add(key)
         result.append({"heading": block.get("heading", ""), "body": body})
+    action_words = ("檢查", "關閉", "限制", "避免", "設定", "權限", "取消", "不要", "先把")
+    if result and not any(any(word in block.get("body", "") for word in action_words) for block in result):
+        result[-1] = {
+            "heading": "避坑",
+            "body": "先檢查權限、關掉不用的串接，敏感資料不要直接丟進 AI。",
+        }
     return result
 
 
@@ -245,6 +251,15 @@ caption 規則：
 10. 不要捏造原文沒有的數據；如果原文沒數字，就講趨勢和影響
 """.strip()
 
+    prompt += """
+
+硬性補充規則：
+- 三個 insight_blocks 必須依序是「發生什麼事 / 為什麼重要 / 大家怎麼避免或注意」。
+- 第三個 insight_blocks 的 heading 優先用「避坑」「做法」「提醒」其中之一。
+- 第三個 insight_blocks 的 body 一定要有具體動作，例如：檢查權限、關閉不用的串接、不要把敏感資料丟進 AI、分開公司與個人帳號、確認帳單/額度/設定。
+- caption 的第 3 點必須是「怎麼做」，至少給 2 個可立即執行的檢查或避免方法，不要只寫「大家要注意」。
+""".strip()
+
     try:
         raw = _ask(prompt)
         data = _parse_json(raw)
@@ -281,13 +296,13 @@ caption 規則：
             "insight_blocks": [
                 {"heading": "核心", "body": _clean_short_text(summary_text, 54) or "今天有一則和 AI 使用直接相關的消息。"},
                 {"heading": "影響", "body": "如果你平常有在用 AI 工具，這會改變你的使用成本或工作方式。"},
-                {"heading": "提醒", "body": "先看清楚限制、適用範圍，再決定要不要跟進。"},
+                {"heading": "避坑", "body": "先查設定與權限，關掉不用的串接，敏感資料不要直接丟。"},
             ],
             "caption": _clean_caption(
                 f"這則 AI 消息不要只滑過，後面可能會影響你每天怎麼用工具。\n\n"
                 f"1. 核心重點：{title}。\n\n"
                 f"2. 為什麼重要：如果你平常有在用 AI 工具，這可能會改變你的成本、效率或資料風險。\n\n"
-                f"3. 你可以怎麼做：先看清楚限制與適用範圍，再決定要不要跟進。\n\n"
+                f"3. 你可以怎麼做：先檢查設定、權限和帳單；不用的外掛或串接先關掉，敏感資料不要直接丟進 AI。\n\n"
                 f"你覺得 AI 工具現在是在幫大家省時間，還是在把大家綁進更貴的工作流程？",
             ),
         }
