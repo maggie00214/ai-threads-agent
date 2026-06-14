@@ -129,8 +129,41 @@ def _safe_text(value: str, fallback: str) -> str:
     return value or fallback
 
 
+def _dedupe_repeated_fragments(text: str) -> str:
+    text = re.sub(r"\s+", " ", (text or "")).strip()
+    if not text:
+        return text
+
+    for _ in range(3):
+        out = []
+        i = 0
+        changed = False
+        while i < len(text):
+            max_unit = min(36, (len(text) - i) // 2)
+            matched = False
+            for size in range(max_unit, 3, -1):
+                unit = text[i : i + size]
+                if not unit.strip() or not text.startswith(unit, i + size):
+                    continue
+                out.append(unit)
+                i += size
+                while text.startswith(unit, i):
+                    i += size
+                    changed = True
+                matched = True
+                break
+            if not matched:
+                out.append(text[i])
+                i += 1
+        next_text = "".join(out)
+        if not changed or next_text == text:
+            return next_text
+        text = next_text
+    return text
+
+
 def _card_body(text: str, limit: int = 32) -> str:
-    text = _safe_text(text, "這則更新值得先記下來。")
+    text = _dedupe_repeated_fragments(_safe_text(text, "這則更新值得先記下來。"))
     for mark in ("；", "。", "，", "、"):
         idx = text.find(mark)
         if 10 <= idx <= limit:
@@ -228,12 +261,25 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     card_y = 570
     accents = [BLUE, ORANGE, ACCENT]
     defaults = ["核心", "影響", "提醒"]
+    fallback_bodies = [
+        "先看它改變了哪個日常流程",
+        "影響會出現在成本、安全或效率",
+        "可以立刻檢查自己的使用方式",
+    ]
+    seen_bodies = set()
     for idx, block in enumerate(blocks[:3]):
+        body = _card_body(block.get("body", ""), 54)
+        body_key = re.sub(r"\W+", "", body).lower()
+        if body_key and body_key in seen_bodies:
+            body = fallback_bodies[idx]
+            body_key = re.sub(r"\W+", "", body).lower()
+        if body_key:
+            seen_bodies.add(body_key)
         _draw_info_card(
             draw,
             [82, card_y + idx * 124, W - 82, card_y + idx * 124 + 112],
             _safe_text(block.get("heading", ""), defaults[idx])[:10],
-            _card_body(block.get("body", ""), 54),
+            body,
             accents[idx],
         )
 

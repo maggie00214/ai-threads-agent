@@ -56,12 +56,47 @@ def _parse_json(text: str) -> Any:
     return json.loads(text)
 
 
+def _dedupe_repeated_fragments(text: str) -> str:
+    text = re.sub(r"[ \t]+", " ", (text or "")).strip()
+    if not text:
+        return text
+
+    for _ in range(3):
+        out = []
+        i = 0
+        changed = False
+        while i < len(text):
+            max_unit = min(48, (len(text) - i) // 2)
+            matched = False
+            for size in range(max_unit, 3, -1):
+                unit = text[i : i + size]
+                if not unit.strip() or not text.startswith(unit, i + size):
+                    continue
+                out.append(unit)
+                i += size
+                while text.startswith(unit, i):
+                    i += size
+                    changed = True
+                matched = True
+                break
+            if not matched:
+                out.append(text[i])
+                i += 1
+        next_text = "".join(out)
+        if not changed or next_text == text:
+            return next_text
+        text = next_text
+    return text
+
+
 def _clean_short_text(text: str, limit: int) -> str:
+    text = _dedupe_repeated_fragments(text)
     text = re.sub(r"\s+", " ", text).strip()
     return text[:limit]
 
 
 def _clean_caption(text: str, limit: int = 520) -> str:
+    text = _dedupe_repeated_fragments(text)
     text = re.sub(r"[ \t]+", " ", text).strip()
     text = re.sub(r"\n{3,}", "\n\n", text)
     if len(text) <= limit:
@@ -73,6 +108,26 @@ def _clean_caption(text: str, limit: int = 520) -> str:
     if best_cut >= max(120, limit // 2):
         return clipped[: best_cut + 1].strip()
     return clipped.strip()
+
+
+def _make_blocks_distinct(blocks: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    fallback_bodies = [
+        "先看它改變了哪個日常流程，不要只看產品名字。",
+        "影響會落在成本、安全或效率，取決於你怎麼用。",
+        "可以立刻檢查自己的工具權限、資料流向與工作流程。",
+    ]
+    seen = set()
+    result = []
+    for idx, block in enumerate(blocks[:3]):
+        body = _dedupe_repeated_fragments(block.get("body", ""))
+        key = re.sub(r"\W+", "", body).lower()
+        if key and key in seen:
+            body = fallback_bodies[min(idx, len(fallback_bodies) - 1)]
+            key = re.sub(r"\W+", "", body).lower()
+        if key:
+            seen.add(key)
+        result.append({"heading": block.get("heading", ""), "body": body})
+    return result
 
 
 def pick_top_article(articles: List[Dict]) -> Dict:
@@ -207,7 +262,7 @@ caption 規則：
                     "body": _clean_short_text(block.get("body", ""), 54),
                 }
             )
-        data["insight_blocks"] = cleaned_blocks
+        data["insight_blocks"] = _make_blocks_distinct(cleaned_blocks)
 
         if "caption" in data:
             caption = re.sub(r"#\S+", "", data["caption"]).strip()
