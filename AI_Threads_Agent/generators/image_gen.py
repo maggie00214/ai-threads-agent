@@ -90,6 +90,56 @@ def _draw_lines(draw, x: int, y: int, lines: List[str], fnt, fill: str, gap: int
     return y
 
 
+def _text_block_size(draw: ImageDraw.ImageDraw, lines: List[str], fnt, gap: int = 8) -> tuple[int, int]:
+    if not lines:
+        return 0, 0
+    widths = []
+    total_h = 0
+    for idx, line in enumerate(lines):
+        bbox = draw.textbbox((0, 0), line, font=fnt)
+        widths.append(bbox[2] - bbox[0])
+        total_h += bbox[3] - bbox[1]
+        if idx < len(lines) - 1:
+            total_h += gap
+    return max(widths), total_h
+
+
+def _fit_lines_to_box(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    max_w: int,
+    max_h: int,
+    max_lines: int,
+    start: int,
+    minimum: int,
+    bold: bool,
+    gap: int = 8,
+):
+    fallback_font = _font(minimum, bold)
+    fallback_lines = _wrap(draw, text, fallback_font, max_w)[:max_lines]
+    for size in range(start, minimum - 1, -2):
+        fnt = _font(size, bold)
+        lines = _wrap(draw, text, fnt, max_w)
+        if not lines or len(lines) > max_lines:
+            continue
+        _, block_h = _text_block_size(draw, lines, fnt, gap)
+        if block_h <= max_h:
+            return fnt, lines
+    return fallback_font, fallback_lines
+
+
+def _draw_lines_in_box(draw, box, lines: List[str], fnt, fill: str, gap: int = 8, align: str = "left") -> None:
+    x1, y1, x2, y2 = box
+    _, block_h = _text_block_size(draw, lines, fnt, gap)
+    y = y1 + max(0, (y2 - y1 - block_h) // 2)
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=fnt)
+        line_w = bbox[2] - bbox[0]
+        x = x1 if align == "left" else x1 + max(0, (x2 - x1 - line_w) // 2)
+        draw.text((x - bbox[0], y - bbox[1]), line, font=fnt, fill=fill)
+        y += bbox[3] - bbox[1] + gap
+
+
 def _draw_centered_lines(draw, box, lines: List[str], fnt, fill: str, gap: int = 8) -> None:
     x1, y1, x2, y2 = box
     total_h = len(lines) * _line_h(draw, fnt, gap) - gap if lines else 0
@@ -235,11 +285,17 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     if angle:
         _badge(draw, angle[:16], x, y, "#152746", BLUE)
 
-    title_font, title_lines = _fit_lines(draw, title, W - 164, 2, 68, 44, True)
-    _draw_lines(draw, 82, 176, title_lines, title_font, WHITE, 8)
+    title_box = [82, 158, W - 82, 292]
+    title_font, title_lines = _fit_lines_to_box(
+        draw, title, title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 66, 38, True, 8
+    )
+    _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 8)
 
-    subtitle_font, subtitle_lines = _fit_lines(draw, subtitle, W - 164, 2, 34, 25, True)
-    _draw_lines(draw, 84, 326, subtitle_lines, subtitle_font, WHITE_SOFT, 6)
+    subtitle_box = [84, 312, W - 84, 382]
+    subtitle_font, subtitle_lines = _fit_lines_to_box(
+        draw, subtitle, subtitle_box[2] - subtitle_box[0], subtitle_box[3] - subtitle_box[1], 2, 34, 23, True, 6
+    )
+    _draw_lines_in_box(draw, subtitle_box, subtitle_lines, subtitle_font, WHITE_SOFT, 6)
 
     hook_text = hook or "這次重點先看懂"
     hook_font, hook_lines = _fit_lines(draw, hook_text, W - 210, 2, 44, 30, True)
