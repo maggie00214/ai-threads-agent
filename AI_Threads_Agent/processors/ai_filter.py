@@ -95,6 +95,44 @@ def _clean_short_text(text: str, limit: int) -> str:
     return text[:limit]
 
 
+def _clean_title_text(text: str, limit: int = 22) -> str:
+    text = _dedupe_repeated_fragments(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= limit:
+        return text
+
+    clipped = text[:limit].rstrip(" ，、：:；;。！？!?-—｜|")
+    for mark in ("：", ":", "，", "、", "；", ";", "。", "！", "？", "!", "?"):
+        idx = clipped.rfind(mark)
+        if idx >= 8:
+            clipped = clipped[:idx].strip()
+            break
+
+    dangling = ("把", "給", "讓", "在", "是", "的", "和", "與", "及", "或", "到", "向", "對")
+    while clipped.endswith(dangling):
+        clipped = clipped[:-1].rstrip()
+    return clipped or text[:limit].rstrip()
+
+
+def _fallback_title_from_article(title: str) -> str:
+    title = re.split(r"[：:｜|]", title or "", maxsplit=1)[0].strip()
+    if not title:
+        return "今日 AI 焦點"
+
+    match = re.search(r"(.+?)把(.+?)交給(.+)", title)
+    if match:
+        subject = match.group(1).strip()
+        target = match.group(2).strip()
+        agent = match.group(3).strip()
+        if "AI" in agent.upper():
+            rewritten = f"{subject} 用 AI 接手{target}"
+        else:
+            rewritten = f"{agent}接手{target}"
+        return _clean_title_text(rewritten, 22)
+
+    return _clean_title_text(title, 22)
+
+
 def _clean_caption(text: str, limit: int = 520) -> str:
     text = _dedupe_repeated_fragments(text)
     text = re.sub(r"[ \t]+", " ", text).strip()
@@ -228,7 +266,7 @@ def generate_post_content(article: Dict, today_str: str) -> Dict:
 
 請只輸出 JSON，包含以下 keys：
 - category: 從 "AI NEWS"、"TOOLS"、"SECURITY"、"WORKFLOW"、"PRICING"、"TIPS" 中選一個
-- title_zh: 18 字內，必須像爆文封面標題，直擊痛點或反直覺
+- title_zh: 22 字內，必須像爆文封面標題，直擊痛點或反直覺，而且語意必須完整，不可以停在「把、給、讓、的」
 - subtitle_zh: 24 字內，補上影響、對象或趨勢
 - hook_line: 24 字內，語不驚人死不休；可用痛點、反直覺觀點或強烈提問
 - insight_blocks: 必須剛好 3 個，每個包含 heading 與 body
@@ -263,7 +301,7 @@ caption 規則：
     try:
         raw = _ask(prompt)
         data = _parse_json(raw)
-        data["title_zh"] = _clean_short_text(data.get("title_zh", ""), 18)
+        data["title_zh"] = _clean_title_text(data.get("title_zh", ""), 22)
         data["subtitle_zh"] = _clean_short_text(data.get("subtitle_zh", ""), 24)
         data["hook_line"] = _clean_short_text(data.get("hook_line", ""), 24)
         data["angle"] = _clean_short_text(data.get("angle", ""), 16)
@@ -286,10 +324,11 @@ caption 規則：
     except Exception as e:
         print(f"[AI Filter] generate_post_content failed: {e}")
         title = article.get("title", "").strip()
+        fallback_title = _fallback_title_from_article(title)
         summary_text = _clean_short_text(article.get("summary", "") or raw_content, 140)
         return {
             "category": "AI NEWS",
-            "title_zh": _clean_short_text(title, 16) or "今日 AI 焦點",
+            "title_zh": fallback_title,
             "subtitle_zh": "這則更新和一般使用者直接有關",
             "hook_line": "別只看新聞標題",
             "angle": "實用資訊",
