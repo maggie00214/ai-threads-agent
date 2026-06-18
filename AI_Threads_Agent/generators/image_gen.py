@@ -117,14 +117,25 @@ def _fit_lines_to_box(
 ):
     fallback_font = _font(minimum, bold)
     fallback_lines = _wrap(draw, text, fallback_font, max_w)[:max_lines]
+    compact_single_line = False
     for size in range(start, minimum - 1, -2):
         fnt = _font(size, bold)
         lines = _wrap(draw, text, fnt, max_w)
         if not lines or len(lines) > max_lines:
             continue
+        if max_lines > 1 and len(lines) > 1 and len(lines[-1].strip()) <= 2:
+            compact_single_line = True
+            continue
         _, block_h = _text_block_size(draw, lines, fnt, gap)
         if block_h <= max_h:
             return fnt, lines
+    if compact_single_line:
+        for size in range(start, minimum - 1, -2):
+            fnt = _font(size, bold)
+            single_line = _ellipsize(draw, text, fnt, max_w)
+            _, block_h = _text_block_size(draw, [single_line], fnt, gap)
+            if block_h <= max_h and draw.textbbox((0, 0), single_line, font=fnt)[2] <= max_w:
+                return fnt, [single_line]
     return fallback_font, fallback_lines
 
 
