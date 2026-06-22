@@ -1,5 +1,5 @@
 """
-Generate orange-blue social news cards with fixed layout zones.
+Generate richer orange-blue carousel cards for Threads/Instagram-style posts.
 """
 import os
 import re
@@ -11,16 +11,21 @@ from PIL import Image, ImageDraw, ImageFont
 W, H = 1080, 1080
 
 BG = "#07111F"
-PANEL = "#0E1728"
-PANEL_2 = "#111D33"
-LINE = "#26385A"
+SHELL = "#0E1728"
+SURFACE = "#111D33"
+SURFACE_2 = "#16233B"
+BORDER = "#26385A"
+INNER = "#1D3154"
 ORANGE = "#FF7A1A"
 BLUE = "#4A94FF"
-ACCENT = "#FFD247"
-WHITE = "#F5F7FF"
-WHITE_SOFT = "#C8D2E6"
-MUTED = "#8FA0C1"
-MUTED_2 = "#7183A8"
+YELLOW = "#FFD247"
+WHITE = "#F4F7FF"
+WHITE_SOFT = "#C9D2E6"
+MUTED = "#8EA1C4"
+MUTED_2 = "#7386AC"
+GREEN_BG = "#163424"
+GREEN_LINE = "#2E8A55"
+GREEN_TEXT = "#A7F1BA"
 
 FONT_PATH = os.environ.get("FONT_PATH", "")
 
@@ -33,6 +38,7 @@ def _font(size: int, bold: bool = False):
         candidates += [
             "C:/Windows/Fonts/msjhbd.ttc",
             "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
             "/System/Library/Fonts/PingFang.ttc",
         ]
     candidates += [
@@ -50,15 +56,21 @@ def _font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 
-def _wrap(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int) -> List[str]:
+def _safe_text(text: str, fallback: str = "") -> str:
     text = re.sub(r"\s+", " ", (text or "")).strip()
+    return text or fallback
+
+
+def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> List[str]:
+    text = _safe_text(text)
     if not text:
         return []
     tokens = re.findall(r"[A-Za-z0-9_.%$+\-/:]+|.", text)
-    lines, current = [], ""
+    lines: List[str] = []
+    current = ""
     for token in tokens:
         test = current + token
-        if draw.textbbox((0, 0), test, font=fnt)[2] <= max_w or not current:
+        if draw.textbbox((0, 0), test, font=font)[2] <= max_w or not current:
             current = test
         else:
             lines.append(current.strip())
@@ -68,36 +80,43 @@ def _wrap(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int) -> List[str]:
     return lines
 
 
-def _line_h(draw: ImageDraw.ImageDraw, fnt, gap: int = 0) -> int:
-    box = draw.textbbox((0, 0), "測試Ag", font=fnt)
+def _line_h(draw: ImageDraw.ImageDraw, font, gap: int = 0) -> int:
+    box = draw.textbbox((0, 0), "Ag測試", font=font)
     return box[3] - box[1] + gap
 
 
-def _fit_lines(draw: ImageDraw.ImageDraw, text: str, max_w: int, max_lines: int, start: int, minimum: int, bold: bool):
-    fallback_font = _font(minimum, bold)
-    fallback_lines = _wrap(draw, text, fallback_font, max_w)[:max_lines]
-    for size in range(start, minimum - 1, -2):
-        fnt = _font(size, bold)
-        lines = _wrap(draw, text, fnt, max_w)
-        if lines and len(lines) <= max_lines:
-            return fnt, lines
-    return fallback_font, fallback_lines
+def _ellipsize(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> str:
+    text = _safe_text(text)
+    if not text:
+        return ""
+    if draw.textbbox((0, 0), text, font=font)[2] <= max_w:
+        return text
+    suffix = "..."
+    allowed = max_w - draw.textbbox((0, 0), suffix, font=font)[2]
+    kept = ""
+    for ch in text:
+        if draw.textbbox((0, 0), kept + ch, font=font)[2] > allowed:
+            break
+        kept += ch
+    return (kept.rstrip() + suffix) if kept else suffix
 
 
-def _draw_lines(draw, x: int, y: int, lines: List[str], fnt, fill: str, gap: int = 8) -> int:
-    for line in lines:
-        draw.text((x, y), line, font=fnt, fill=fill)
-        y += _line_h(draw, fnt, gap)
-    return y
+def _wrap_ellipsized(draw: ImageDraw.ImageDraw, text: str, font, max_w: int, max_lines: int) -> List[str]:
+    lines = _wrap(draw, text, font, max_w)
+    if len(lines) <= max_lines:
+        return lines
+    keep = lines[:max_lines]
+    keep[-1] = _ellipsize(draw, "".join([keep[-1], *lines[max_lines:]]), font, max_w)
+    return keep
 
 
-def _text_block_size(draw: ImageDraw.ImageDraw, lines: List[str], fnt, gap: int = 8) -> tuple[int, int]:
+def _text_block_size(draw: ImageDraw.ImageDraw, lines: List[str], font, gap: int = 8) -> tuple[int, int]:
     if not lines:
         return 0, 0
     widths = []
     total_h = 0
     for idx, line in enumerate(lines):
-        bbox = draw.textbbox((0, 0), line, font=fnt)
+        bbox = draw.textbbox((0, 0), line, font=font)
         widths.append(bbox[2] - bbox[0])
         total_h += bbox[3] - bbox[1]
         if idx < len(lines) - 1:
@@ -117,297 +136,250 @@ def _fit_lines_to_box(
     gap: int = 8,
 ):
     fallback_font = _font(minimum, bold)
-    fallback_lines = _wrap(draw, text, fallback_font, max_w)[:max_lines]
-    compact_single_line = False
+    fallback_lines = _wrap_ellipsized(draw, text, fallback_font, max_w, max_lines)
     for size in range(start, minimum - 1, -2):
-        fnt = _font(size, bold)
-        lines = _wrap(draw, text, fnt, max_w)
+        font = _font(size, bold)
+        lines = _wrap(draw, text, font, max_w)
         if not lines or len(lines) > max_lines:
             continue
-        if max_lines > 1 and len(lines) > 1 and len(lines[-1].strip()) <= 2:
-            compact_single_line = True
-            continue
-        _, block_h = _text_block_size(draw, lines, fnt, gap)
+        _, block_h = _text_block_size(draw, lines, font, gap)
         if block_h <= max_h:
-            return fnt, lines
-    if compact_single_line:
-        for size in range(start, minimum - 1, -2):
-            fnt = _font(size, bold)
-            single_line = _ellipsize(draw, text, fnt, max_w)
-            _, block_h = _text_block_size(draw, [single_line], fnt, gap)
-            if block_h <= max_h and draw.textbbox((0, 0), single_line, font=fnt)[2] <= max_w:
-                return fnt, [single_line]
+            return font, lines
     return fallback_font, fallback_lines
 
 
-def _draw_lines_in_box(draw, box, lines: List[str], fnt, fill: str, gap: int = 8, align: str = "left") -> None:
+def _draw_lines(draw, x: int, y: int, lines: List[str], font, fill: str, gap: int = 8) -> int:
+    for line in lines:
+        draw.text((x, y), line, font=font, fill=fill)
+        y += _line_h(draw, font, gap)
+    return y
+
+
+def _draw_lines_in_box(draw, box, lines: List[str], font, fill: str, gap: int = 8, align: str = "left") -> None:
     x1, y1, x2, y2 = box
-    _, block_h = _text_block_size(draw, lines, fnt, gap)
+    _, block_h = _text_block_size(draw, lines, font, gap)
     y = y1 + max(0, (y2 - y1 - block_h) // 2)
     for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=fnt)
+        bbox = draw.textbbox((0, 0), line, font=font)
         line_w = bbox[2] - bbox[0]
-        x = x1 if align == "left" else x1 + max(0, (x2 - x1 - line_w) // 2)
-        draw.text((x - bbox[0], y - bbox[1]), line, font=fnt, fill=fill)
+        if align == "center":
+            x = x1 + max(0, (x2 - x1 - line_w) // 2)
+        else:
+            x = x1
+        draw.text((x - bbox[0], y - bbox[1]), line, font=font, fill=fill)
         y += bbox[3] - bbox[1] + gap
 
 
-def _draw_centered_lines(draw, box, lines: List[str], fnt, fill: str, gap: int = 8) -> None:
-    x1, y1, x2, y2 = box
-    total_h = len(lines) * _line_h(draw, fnt, gap) - gap if lines else 0
-    y = y1 + max(0, (y2 - y1 - total_h) // 2)
-    for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=fnt)
-        x = x1 + max(0, (x2 - x1 - (bbox[2] - bbox[0])) // 2)
-        draw.text((x, y), line, font=fnt, fill=fill)
-        y += _line_h(draw, fnt, gap)
-
-
-def _badge(draw, text: str, x: int, y: int, fill: str, text_fill: str) -> int:
-    text = (text or "").strip()
-    fnt = _font(24, bold=True)
-    bbox = draw.textbbox((0, 0), text, font=fnt)
-    w = bbox[2] - bbox[0] + 34
-    h = bbox[3] - bbox[1] + 22
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=14, fill=fill)
-    draw.text((x + 17, y + 8), text, font=fnt, fill=text_fill)
-    return x + w + 12
-
-
-def _draw_glow(img: Image.Image, cx: int, cy: int, color_hex: str, radius: int, strength: float):
-    r, g, b = int(color_hex[1:3], 16), int(color_hex[3:5], 16), int(color_hex[5:7], 16)
-    layer = img.copy()
-    draw = ImageDraw.Draw(layer)
-    for i in range(18, 0, -1):
-        alpha = int(255 * strength * (i / 18) ** 2)
-        rr = int(radius * i / 18)
-        color = (r, g, b)
-        draw.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=color)
-    return Image.blend(img, layer, 0.10)
-
-
-def _draw_frame(draw, box, radius: int = 28) -> None:
-    x1, y1, x2, y2 = box
-    draw.rounded_rectangle([x1, y1, x2, y2], radius=radius, fill=PANEL, outline=LINE, width=2)
-    draw.rounded_rectangle([x1 + 14, y1 + 14, x2 - 14, y2 - 14], radius=radius - 10, outline="#1A2A48", width=1)
-
-
-def _safe_text(value: str, fallback: str) -> str:
-    value = re.sub(r"\s+", " ", (value or "")).strip()
-    return value or fallback
-
-
-def _dedupe_repeated_fragments(text: str) -> str:
-    text = re.sub(r"\s+", " ", (text or "")).strip()
+def _split_sentences(text: str) -> List[str]:
+    text = _safe_text(text)
     if not text:
+        return []
+    parts = re.split(r"[。！？!?]\s*", text)
+    cleaned = []
+    for part in parts:
+        part = _safe_text(part)
+        if part and part not in cleaned:
+            cleaned.append(part)
+    return cleaned
+
+
+def _trim_chars(text: str, limit: int) -> str:
+    text = _safe_text(text)
+    if len(text) <= limit:
         return text
-
-    for _ in range(3):
-        out = []
-        i = 0
-        changed = False
-        while i < len(text):
-            max_unit = min(36, (len(text) - i) // 2)
-            matched = False
-            for size in range(max_unit, 3, -1):
-                unit = text[i : i + size]
-                if not unit.strip() or not text.startswith(unit, i + size):
-                    continue
-                out.append(unit)
-                i += size
-                while text.startswith(unit, i):
-                    i += size
-                    changed = True
-                matched = True
-                break
-            if not matched:
-                out.append(text[i])
-                i += 1
-        next_text = "".join(out)
-        if not changed or next_text == text:
-            return next_text
-        text = next_text
-    return text
+    return text[:limit].rstrip(" ，、。；;:：,.!?") + "..."
 
 
-def _card_body(text: str, limit: int = 32) -> str:
-    text = _dedupe_repeated_fragments(_safe_text(text, "這則更新值得先記下來。"))
-    for mark in ("；", "。", "，", "、"):
-        idx = text.find(mark)
-        if 10 <= idx <= limit:
-            return text[:idx].strip()
-    return text[:limit].strip()
+def _merge_distinct_text(*parts: str, limit: int = 120) -> str:
+    merged: List[str] = []
+    for part in parts:
+        part = _safe_text(part)
+        if not part:
+            continue
+        if any(part in existing or existing in part for existing in merged):
+            continue
+        merged.append(part)
+    return _trim_chars(" ".join(merged), limit)
 
 
-def _ellipsize(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int) -> str:
-    text = re.sub(r"\s+", " ", (text or "")).strip()
-    if draw.textbbox((0, 0), text, font=fnt)[2] <= max_w:
-        return text
-
-    suffix = "..."
-    available = max_w - draw.textbbox((0, 0), suffix, font=fnt)[2]
-    kept = ""
-    for ch in text:
-        candidate = kept + ch
-        if draw.textbbox((0, 0), candidate, font=fnt)[2] > available:
-            break
-        kept = candidate
-    return (kept.rstrip() + suffix) if kept else suffix
-
-
-def _wrap_ellipsized(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int, max_lines: int) -> List[str]:
-    lines = _wrap(draw, text, fnt, max_w)
-    if len(lines) <= max_lines:
-        return lines
-    kept = lines[:max_lines]
-    kept[-1] = _ellipsize(draw, "".join([kept[-1], *lines[max_lines:]]), fnt, max_w)
-    return kept
+def _normalize_blocks(post: Dict) -> List[Dict[str, str]]:
+    blocks = []
+    for item in post.get("insight_blocks", [])[:3]:
+        heading = _safe_text(item.get("heading", ""), "重點")[:10]
+        body = _trim_chars(item.get("body", ""), 72)
+        if heading and body:
+            blocks.append({"heading": heading, "body": body})
+    while len(blocks) < 3:
+        defaults = [
+            ("核心變化", _trim_chars(_safe_text(post.get("subtitle_zh", ""), "這次更新和一般使用者的工作流直接有關。"), 72)),
+            ("為什麼要看", "它影響的不是單一功能，而是你每天怎麼用 AI 工具與資料。"),
+            ("先做這件事", "先檢查權限、外部串接和敏感資料流向，再決定要不要開啟自動化。"),
+        ]
+        heading, body = defaults[len(blocks)]
+        blocks.append({"heading": heading, "body": body})
+    return blocks[:3]
 
 
-def _draw_info_card(draw, box, heading: str, body: str, accent: str) -> None:
-    x1, y1, x2, y2 = box
-    draw.rounded_rectangle([x1, y1, x2, y2], radius=18, fill=PANEL_2, outline="#2C4673", width=2)
-    draw.rounded_rectangle([x1 + 14, y1 + 12, x2 - 14, y2 - 12], radius=14, outline="#182945", width=1)
-    draw.rectangle([x1 + 18, y1 + 16, x1 + 24, y2 - 16], fill=accent)
+def _build_story(post: Dict) -> Dict[str, object]:
+    title = _safe_text(post.get("title_zh", ""), "這則 AI 更新別滑掉")
+    subtitle = _safe_text(post.get("subtitle_zh", ""), "這次更新和你每天用工具的方式直接有關")
+    hook = _safe_text(post.get("hook_line", ""), "這不是小更新，是真的會影響工作流。")
+    angle = _safe_text(post.get("angle", ""), "實用提醒")
+    caption = _safe_text(post.get("caption", ""), "")
+    blocks = _normalize_blocks(post)
 
-    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 78, 1, 21, 18, True)
-    body_font = _font(27)
-    body_lines = _wrap_ellipsized(draw, body, body_font, x2 - x1 - 78, 2)
+    sentences = _split_sentences(caption)
+    if not sentences:
+        sentences = [subtitle, blocks[0]["body"], blocks[1]["body"], blocks[2]["body"]]
 
-    heading_y = y1 + 14
-    _draw_lines(draw, x1 + 40, heading_y, heading_lines, heading_font, accent, 0)
-    body_y = heading_y + _line_h(draw, heading_font, 0) + 8
-    _draw_lines(draw, x1 + 40, body_y, body_lines, body_font, WHITE, 4)
+    overview = " ".join(sentences[:2]).strip() or subtitle
+    why = " ".join(sentences[1:3]).strip() or blocks[1]["body"]
+    risk = sentences[2] if len(sentences) >= 3 else blocks[1]["body"]
+    summary = sentences[0] if sentences else subtitle
+
+    actions = []
+    action_source = blocks[2]["body"]
+    action_parts = [part.strip(" ，、。；;") for part in re.split(r"[，、。；;]", action_source) if part.strip(" ，、。；;")]
+    for idx, part in enumerate(action_parts[:3]):
+        if len(part) < 6:
+            continue
+        actions.append({"label": f"先做 {idx + 1}", "body": _trim_chars(part, 30)})
+
+    fallback_actions = [
+        "先確認這個工具拿得到哪些檔案、郵件和外部服務權限",
+        "沒有在用的串接先停掉，敏感資料不要直接丟進自動化流程",
+        "先用個人測試環境試跑，再決定要不要放進正式工作流",
+    ]
+    while len(actions) < 3:
+        actions.append({"label": f"先做 {len(actions) + 1}", "body": _trim_chars(fallback_actions[len(actions)], 30)})
+    for idx, action in enumerate(actions[:3], start=1):
+        action["label"] = f"先做 {idx}"
+
+    return {
+        "title": title,
+        "subtitle": subtitle,
+        "hook": hook,
+        "angle": angle,
+        "blocks": blocks,
+        "overview": _trim_chars(overview, 120),
+        "why": _trim_chars(why, 120),
+        "risk": _trim_chars(risk, 70),
+        "summary": _trim_chars(summary, 70),
+        "actions": actions[:3],
+    }
 
 
 def _draw_shell(draw) -> None:
     margin = 48
-    _draw_frame(draw, [margin, margin, W - margin, H - margin], 30)
+    draw.rounded_rectangle([margin, margin, W - margin, H - margin], radius=30, fill=SHELL, outline=BORDER, width=2)
+    draw.rounded_rectangle([margin + 14, margin + 14, W - margin - 14, H - margin - 14], radius=24, outline=INNER, width=1)
     draw.rectangle([margin, margin, W - margin, margin + 10], fill=ORANGE)
-    draw.rectangle([margin + 18, margin + 22, W - margin - 18, margin + 23], fill="#11203A")
 
 
 def _draw_footer(draw, source: str, date_str: str) -> None:
-    footer_y = H - 108
-    draw.rectangle([82, footer_y - 22, W - 82, footer_y - 20], fill=LINE)
-    small = _font(21, bold=True)
+    y = H - 106
+    draw.rectangle([82, y - 24, W - 82, y - 21], fill=BORDER)
+    font = _font(21, bold=True)
     source_text = f"SOURCE  {source.upper()[:26]}"
-    draw.text((82, footer_y), source_text, font=small, fill=MUTED)
-    date_w = draw.textbbox((0, 0), date_str, font=small)[2]
-    draw.text((W - 82 - date_w, footer_y), date_str, font=small, fill=MUTED)
+    draw.text((82, y), source_text, font=font, fill=MUTED)
+    date_w = draw.textbbox((0, 0), date_str, font=font)[2]
+    draw.text((W - 82 - date_w, y), date_str, font=font, fill=MUTED)
 
 
 def _draw_page_chip(draw, page_no: int, total_pages: int) -> None:
     text = f"{page_no}/{total_pages}"
-    fnt = _font(20, bold=True)
-    bbox = draw.textbbox((0, 0), text, font=fnt)
-    w = bbox[2] - bbox[0] + 28
-    h = bbox[3] - bbox[1] + 16
+    font = _font(20, bold=True)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    w = bbox[2] - bbox[0] + 30
+    h = bbox[3] - bbox[1] + 18
     x2 = W - 82
     y1 = 88
-    draw.rounded_rectangle([x2 - w, y1, x2, y1 + h], radius=14, fill="#152746", outline="#28406C", width=1)
-    draw.text((x2 - w + 14, y1 + 7), text, font=fnt, fill=WHITE_SOFT)
+    draw.rounded_rectangle([x2 - w, y1, x2, y1 + h], radius=14, fill="#152746", outline="#314E81", width=1)
+    draw.text((x2 - w + 15, y1 + 8), text, font=font, fill=WHITE_SOFT)
 
 
-def _split_action_points(text: str) -> List[str]:
-    text = re.sub(r"\s+", " ", (text or "")).strip()
-    parts = [part.strip(" ，、。；;") for part in re.split(r"[，、。；;]", text) if part.strip(" ，、。；;")]
-    cleaned = []
-    for part in parts:
-        if part not in cleaned:
-            cleaned.append(part)
-    return cleaned[:3]
+def _badge(draw, text: str, x: int, y: int, fill: str, text_fill: str) -> int:
+    font = _font(24, bold=True)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    w = bbox[2] - bbox[0] + 34
+    h = bbox[3] - bbox[1] + 22
+    draw.rounded_rectangle([x, y, x + w, y + h], radius=16, fill=fill)
+    draw.text((x + 17, y + 8), text, font=font, fill=text_fill)
+    return x + w + 12
 
 
-def _draw_check_item(draw, box, text: str) -> None:
+def _draw_section_card(draw, box, heading: str, body: str, accent: str, body_lines: int = 3) -> None:
     x1, y1, x2, y2 = box
-    draw.rounded_rectangle([x1, y1, x2, y2], radius=18, fill=PANEL_2, outline="#2C4673", width=2)
-    draw.rounded_rectangle([x1 + 14, y1 + 12, x2 - 14, y2 - 12], radius=14, outline="#182945", width=1)
-    draw.ellipse([x1 + 22, y1 + 22, x1 + 46, y1 + 46], fill="#173C23", outline="#2C8A54", width=1)
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=22, fill=SURFACE, outline="#2B4672", width=2)
+    draw.rounded_rectangle([x1 + 14, y1 + 14, x2 - 14, y2 - 14], radius=16, outline="#1C2E4F", width=1)
+    draw.rectangle([x1 + 22, y1 + 24, x1 + 28, y2 - 24], fill=accent)
+
+    label_font = _font(19, bold=True)
+    body_font = _font(29)
+    draw.text((x1 + 48, y1 + 22), heading, font=label_font, fill=accent)
+    lines = _wrap_ellipsized(draw, body, body_font, x2 - x1 - 72, body_lines)
+    _draw_lines(draw, x1 + 48, y1 + 58, lines, body_font, WHITE, 6)
+
+
+def _draw_paragraph_card(draw, box, title: str, body: str, accent: str) -> None:
+    x1, y1, x2, y2 = box
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=24, fill=SURFACE, outline="#2B4672", width=2)
+    draw.rounded_rectangle([x1 + 14, y1 + 14, x2 - 14, y2 - 14], radius=18, outline="#1C2E4F", width=1)
+    tag_font = _font(20, bold=True)
+    draw.text((x1 + 28, y1 + 24), title, font=tag_font, fill=accent)
+    body_font = _font(31)
+    lines = _wrap_ellipsized(draw, body, body_font, x2 - x1 - 56, 5)
+    _draw_lines(draw, x1 + 28, y1 + 66, lines, body_font, WHITE, 8)
+
+
+def _draw_action_card(draw, box, label: str, body: str) -> None:
+    x1, y1, x2, y2 = box
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=22, fill=SURFACE, outline="#2B4672", width=2)
+    draw.rounded_rectangle([x1 + 14, y1 + 14, x2 - 14, y2 - 14], radius=16, outline="#1C2E4F", width=1)
+    draw.ellipse([x1 + 24, y1 + 23, x1 + 54, y1 + 53], fill=GREEN_BG, outline=GREEN_LINE, width=1)
     mark_font = _font(18, bold=True)
-    draw.text((x1 + 27, y1 + 20), "v", font=mark_font, fill="#9CF0B2")
-    body_font = _font(28)
-    lines = _wrap_ellipsized(draw, text, body_font, x2 - x1 - 84, 2)
-    _draw_lines(draw, x1 + 62, y1 + 20, lines, body_font, WHITE, 4)
+    draw.text((x1 + 33, y1 + 24), "v", font=mark_font, fill=GREEN_TEXT)
+    label_font = _font(20, bold=True)
+    body_font = _font(27)
+    draw.text((x1 + 72, y1 + 18), label, font=label_font, fill=WHITE_SOFT)
+    lines = _wrap_ellipsized(draw, body, body_font, x2 - x1 - 96, 2)
+    _draw_lines(draw, x1 + 72, y1 + 48, lines, body_font, WHITE, 4)
 
 
 def generate_featured_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
+    story = _build_story(post)
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
-
     _draw_shell(draw)
-
-    category = _safe_text(post.get("category", "AI NEWS"), "AI NEWS").upper()[:12]
-    angle = _safe_text(post.get("angle", ""), "")
-    title = _safe_text(post.get("title_zh", ""), "今日 AI 重點")
-    subtitle = _safe_text(post.get("subtitle_zh", ""), "這則更新和一般使用者有關")
-    hook = _safe_text(post.get("hook_line", ""), "")
-    blocks = post.get("insight_blocks", [])[:3]
 
     x = 82
     y = 88
-    x = _badge(draw, category, x, y, ORANGE, WHITE)
-    if angle:
-        _badge(draw, angle[:16], x, y, "#152746", BLUE)
+    x = _badge(draw, _safe_text(post.get("category", "AI NEWS"), "AI NEWS").upper()[:12], x, y, ORANGE, WHITE)
+    _badge(draw, story["angle"][:16], x, y, "#152746", BLUE)
     _draw_page_chip(draw, 1, 3)
 
-    title_box = [82, 166, W - 96, 326]
-    title_font, title_lines = _fit_lines_to_box(
-        draw, title, title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 60, 32, True, 10
-    )
-    _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 10)
+    title_box = [82, 166, W - 96, 320]
+    title_font, title_lines = _fit_lines_to_box(draw, story["title"], title_box[2] - title_box[0], title_box[3] - title_box[1], 3, 58, 30, True, 8)
+    _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 8)
 
-    subtitle_box = [84, 340, W - 96, 394]
-    subtitle_font, subtitle_lines = _fit_lines_to_box(
-        draw, subtitle, subtitle_box[2] - subtitle_box[0], subtitle_box[3] - subtitle_box[1], 2, 29, 21, True, 6
-    )
+    subtitle_box = [82, 326, W - 96, 388]
+    subtitle_font, subtitle_lines = _fit_lines_to_box(draw, story["subtitle"], subtitle_box[2] - subtitle_box[0], subtitle_box[3] - subtitle_box[1], 2, 28, 22, True, 6)
     _draw_lines_in_box(draw, subtitle_box, subtitle_lines, subtitle_font, WHITE_SOFT, 6)
 
-    hook_text = hook or "這次重點先看懂"
-    hook_font, hook_lines = _fit_lines_to_box(draw, hook_text, W - 240, 72, 2, 40, 28, True, 8)
-    hook_box = [82, 434, W - 82, 548]
-    draw.rounded_rectangle(hook_box, radius=22, fill="#1A2741", outline="#304B7D", width=2)
-    draw.rounded_rectangle([hook_box[0] + 14, hook_box[1] + 12, hook_box[2] - 14, hook_box[3] - 12], radius=16, outline="#203459", width=1)
-    draw.rectangle([hook_box[0] + 24, hook_box[1] + 24, hook_box[0] + 32, hook_box[3] - 24], fill=ACCENT)
-    _draw_lines_in_box(draw, [hook_box[0] + 48, hook_box[1], hook_box[2] - 28, hook_box[3]], hook_lines, hook_font, ACCENT, 8, "center")
+    hook_box = [82, 420, W - 82, 554]
+    draw.rounded_rectangle(hook_box, radius=24, fill=SURFACE_2, outline="#2F4A7A", width=2)
+    draw.rounded_rectangle([hook_box[0] + 14, hook_box[1] + 14, hook_box[2] - 14, hook_box[3] - 14], radius=18, outline="#20345A", width=1)
+    draw.rectangle([hook_box[0] + 24, hook_box[1] + 24, hook_box[0] + 31, hook_box[3] - 24], fill=YELLOW)
+    draw.text((hook_box[0] + 48, hook_box[1] + 24), "別只看新聞標題", font=_font(20, bold=True), fill=YELLOW)
+    hook_font, hook_lines = _fit_lines_to_box(draw, story["hook"], hook_box[2] - hook_box[0] - 80, 68, 2, 42, 28, True, 8)
+    _draw_lines_in_box(draw, [hook_box[0] + 48, hook_box[1] + 54, hook_box[2] - 24, hook_box[3] - 18], hook_lines, hook_font, WHITE, 8)
 
-    if not blocks:
-        blocks = [
-            {"heading": "核心", "body": subtitle},
-            {"heading": "影響", "body": "這會改變工具成本、資料風險或工作流程。"},
-            {"heading": "提醒", "body": "先看限制，再決定要不要跟進。"},
-        ]
-
-    while len(blocks) < 3:
-        blocks.append({"heading": "提醒", "body": "常用 AI 工具的人可以先注意這次變動。"})
-
-    card_y = 582
-    accents = [BLUE, ORANGE, ACCENT]
-    defaults = ["核心", "影響", "提醒"]
-    fallback_bodies = [
-        "先看它改變了哪個日常流程",
-        "影響會出現在成本、安全或效率",
-        "可以立刻檢查自己的使用方式",
-    ]
-    seen_bodies = set()
-    for idx, block in enumerate(blocks[:3]):
-        body = _card_body(block.get("body", ""), 54)
-        body_key = re.sub(r"\W+", "", body).lower()
-        if body_key and body_key in seen_bodies:
-            body = fallback_bodies[idx]
-            body_key = re.sub(r"\W+", "", body).lower()
-        if body_key:
-            seen_bodies.add(body_key)
-        _draw_info_card(
-            draw,
-            [82, card_y + idx * 114, W - 82, card_y + idx * 114 + 96],
-            _safe_text(block.get("heading", ""), defaults[idx])[:10],
-            body,
-            accents[idx],
-        )
+    blocks = story["blocks"]
+    _draw_section_card(draw, [82, 578, W - 82, 686], blocks[0]["heading"], blocks[0]["body"], BLUE, 2)
+    _draw_section_card(draw, [82, 706, W - 82, 814], blocks[1]["heading"], blocks[1]["body"], ORANGE, 2)
+    _draw_section_card(draw, [82, 834, W - 82, 942], blocks[2]["heading"], blocks[2]["body"], YELLOW, 2)
 
     _draw_footer(draw, source, date_str)
-
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     img.save(output_path, "PNG")
     print(f"[Image] saved: {output_path}")
@@ -415,6 +387,7 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
 
 
 def generate_detail_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
+    story = _build_story(post)
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
     _draw_shell(draw)
@@ -425,44 +398,22 @@ def generate_detail_card(post: Dict, source: str, date_str: str, output_path: st
     _badge(draw, "重點拆解", x, y, "#152746", BLUE)
     _draw_page_chip(draw, 2, 3)
 
-    eyebrow_font = _font(24, bold=True)
-    draw.text((82, 170), "這則更新在說什麼", font=eyebrow_font, fill=ACCENT)
-
-    title = _safe_text(post.get("title_zh", ""), "今日 AI 重點")
-    title_box = [82, 206, W - 96, 302]
-    title_font, title_lines = _fit_lines_to_box(
-        draw, title, title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 50, 28, True, 8
-    )
+    draw.text((82, 168), "這則更新在說什麼", font=_font(22, bold=True), fill=YELLOW)
+    title_box = [82, 198, W - 96, 300]
+    title_font, title_lines = _fit_lines_to_box(draw, story["title"], title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 50, 30, True, 8)
     _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 8)
 
-    blocks = post.get("insight_blocks", [])[:3]
-    defaults = ["核心", "影響", "提醒"]
-    bodies = []
-    for idx, block in enumerate(blocks[:2]):
-        bodies.append(
-            {
-                "heading": _safe_text(block.get("heading", ""), defaults[idx])[:10],
-                "body": _card_body(block.get("body", ""), 80),
-                "accent": [BLUE, ORANGE][idx],
-            }
-        )
-    while len(bodies) < 2:
-        bodies.append({"heading": defaults[len(bodies)], "body": "這則更新和日常工具使用直接有關。", "accent": [BLUE, ORANGE][len(bodies)]})
+    _draw_paragraph_card(draw, [82, 334, W - 82, 564], "先看核心", story["overview"], WHITE_SOFT)
+    _draw_paragraph_card(draw, [82, 590, W - 82, 786], "為什麼值得注意", _merge_distinct_text(story["why"], story["blocks"][1]["body"], limit=130), ORANGE)
 
-    _draw_info_card(draw, [82, 360, W - 82, 516], bodies[0]["heading"], bodies[0]["body"], bodies[0]["accent"])
-    _draw_info_card(draw, [82, 540, W - 82, 696], bodies[1]["heading"], bodies[1]["body"], bodies[1]["accent"])
-
-    tip_box = [82, 730, W - 82, 868]
-    draw.rounded_rectangle(tip_box, radius=22, fill="#16243C", outline="#29426C", width=2)
-    draw.rounded_rectangle([tip_box[0] + 14, tip_box[1] + 12, tip_box[2] - 14, tip_box[3] - 12], radius=16, outline="#1E3358", width=1)
-    label_font = _font(20, bold=True)
-    body_font = _font(30)
-    draw.text((104, 752), "先看懂影響", font=label_font, fill=ACCENT)
-    detail_lines = _wrap_ellipsized(draw, "不是只看模型厲不厲害，而是它正在接手多少流程與權限。", body_font, W - 220, 2)
-    _draw_lines(draw, 104, 786, detail_lines, body_font, WHITE, 6)
+    quote_box = [82, 816, W - 82, 918]
+    draw.rounded_rectangle(quote_box, radius=22, fill=SURFACE_2, outline="#2B4672", width=2)
+    draw.rounded_rectangle([quote_box[0] + 14, quote_box[1] + 14, quote_box[2] - 14, quote_box[3] - 14], radius=16, outline="#1C2E4F", width=1)
+    draw.text((108, 836), "一句話影響", font=_font(18, bold=True), fill=YELLOW)
+    quote_lines = _wrap_ellipsized(draw, _trim_chars(story["risk"] + " 這種變化通常不是看熱鬧就好。", 70), _font(28), W - 220, 2)
+    _draw_lines(draw, 108, 868, quote_lines, _font(28), WHITE, 5)
 
     _draw_footer(draw, source, date_str)
-
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     img.save(output_path, "PNG")
     print(f"[Image] saved: {output_path}")
@@ -470,6 +421,7 @@ def generate_detail_card(post: Dict, source: str, date_str: str, output_path: st
 
 
 def generate_action_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
+    story = _build_story(post)
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
     _draw_shell(draw)
@@ -480,39 +432,26 @@ def generate_action_card(post: Dict, source: str, date_str: str, output_path: st
     _badge(draw, "你可以怎麼做", x, y, "#152746", BLUE)
     _draw_page_chip(draw, 3, 3)
 
-    title_font = _font(50, bold=True)
-    draw.text((82, 166), "現在先做這 3 件事", font=title_font, fill=WHITE)
-    sub_font = _font(28, bold=True)
-    sub_lines = _wrap_ellipsized(draw, _safe_text(post.get("subtitle_zh", ""), "看懂更新，也要知道怎麼避坑"), sub_font, W - 180, 2)
-    _draw_lines(draw, 82, 246, sub_lines, sub_font, WHITE_SOFT, 6)
+    title_box = [82, 166, W - 96, 268]
+    title_font, title_lines = _fit_lines_to_box(draw, "看到這類 AI 更新，先做這 3 件事", title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 48, 28, True, 8)
+    _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 8)
 
-    action_text = ""
-    blocks = post.get("insight_blocks", [])[:3]
-    if len(blocks) >= 3:
-        action_text = blocks[2].get("body", "")
-    points = _split_action_points(action_text)
-    while len(points) < 3:
-        fallbacks = [
-            "先檢查這個工具能碰哪些資料",
-            "不用的串接、權限先關掉",
-            "公司與個人帳號不要混用",
-        ]
-        points.append(fallbacks[len(points)])
+    intro_lines = _wrap_ellipsized(draw, story["summary"], _font(28, bold=True), W - 180, 2)
+    _draw_lines(draw, 82, 284, intro_lines, _font(28, bold=True), WHITE_SOFT, 6)
 
-    start_y = 390
-    for idx, point in enumerate(points[:3]):
-        _draw_check_item(draw, [82, start_y + idx * 128, W - 82, start_y + idx * 128 + 98], point)
+    actions = story["actions"]
+    _draw_action_card(draw, [82, 388, W - 82, 506], actions[0]["label"], actions[0]["body"])
+    _draw_action_card(draw, [82, 530, W - 82, 648], actions[1]["label"], actions[1]["body"])
+    _draw_action_card(draw, [82, 672, W - 82, 790], actions[2]["label"], actions[2]["body"])
 
-    cta_box = [82, 804, W - 82, 892]
-    draw.rounded_rectangle(cta_box, radius=20, fill="#151F33", outline="#2B436E", width=2)
-    cta_label = _font(18, bold=True)
-    cta_font = _font(24, bold=True)
-    draw.text((106, 822), "留言延伸", font=cta_label, fill=MUTED_2)
-    cta_lines = _wrap_ellipsized(draw, "你會先追新功能，還是先收權限？", cta_font, W - 220, 2)
-    _draw_lines(draw, 106, 846, cta_lines, cta_font, WHITE, 4)
+    cta_box = [82, 824, W - 82, 942]
+    draw.rounded_rectangle(cta_box, radius=22, fill=SURFACE_2, outline="#2B4672", width=2)
+    draw.rounded_rectangle([cta_box[0] + 14, cta_box[1] + 14, cta_box[2] - 14, cta_box[3] - 14], radius=16, outline="#1C2E4F", width=1)
+    draw.text((108, 844), "留言區延伸", font=_font(18, bold=True), fill=MUTED_2)
+    cta_lines = _wrap_ellipsized(draw, "你會先追新功能，還是先把權限收緊？", _font(28, bold=True), W - 220, 2)
+    _draw_lines(draw, 108, 876, cta_lines, _font(28, bold=True), WHITE, 6)
 
     _draw_footer(draw, source, date_str)
-
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     img.save(output_path, "PNG")
     print(f"[Image] saved: {output_path}")
