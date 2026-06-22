@@ -1,13 +1,11 @@
 """
-Publish the generated image from GitHub Actions, then reply with the source link.
+Publish generated images from GitHub Actions, then reply with the source link.
 """
 import json
-import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote
 
 from dotenv import load_dotenv
 
@@ -15,7 +13,20 @@ APP_DIR = Path(__file__).parent
 load_dotenv(APP_DIR / ".env")
 sys.path.insert(0, str(APP_DIR))
 
-from publishers.threads import post_reply, publish_with_url
+from publishers.threads import post_reply, publish_carousel, publish_single
+
+
+def _resolve_image_paths(log: dict) -> list[str]:
+    paths = log.get("image_paths") or [log.get("image_path", "")]
+    resolved = []
+    for path in paths:
+        if not path:
+            continue
+        img_path = Path(path)
+        if not img_path.is_absolute():
+            img_path = (APP_DIR.parent / img_path).resolve()
+        resolved.append(str(img_path))
+    return resolved
 
 
 def main():
@@ -32,17 +43,19 @@ def main():
     caption = log["post_content"]["caption"]
     source_url = log.get("source_url", "")
     source_name = log["selected"].get("source", "")
-    repo = os.environ.get("GITHUB_REPO", "maggie00214/ai-threads-agent")
+    image_paths = _resolve_image_paths(log)
 
-    img_path = log.get("image_path", "").replace("\\", "/")
-    img_file = img_path.split("/")[-1] if img_path else "featured.png"
-    encoded = quote(f"每日內容/{today}/images/{img_file}", safe="/")
-    image_url = f"https://raw.githubusercontent.com/{repo}/images/{encoded}"
+    if not image_paths:
+        print("[Error] no images found in log.json")
+        sys.exit(1)
 
-    print(f"[Publish] image URL: {image_url}")
+    print(f"[Publish] image count: {len(image_paths)}")
     print(f"[Publish] caption preview: {caption[:60]}...")
 
-    post_id = publish_with_url(image_url, caption)
+    if len(image_paths) > 1:
+        post_id = publish_carousel(image_paths, caption)
+    else:
+        post_id = publish_single(image_paths[0], caption)
     print(f"[Publish] post ID: {post_id}")
 
     reply_id = ""

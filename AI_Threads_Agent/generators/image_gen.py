@@ -280,14 +280,62 @@ def _draw_info_card(draw, box, heading: str, body: str, accent: str) -> None:
     _draw_lines(draw, x1 + 40, body_y, body_lines, body_font, WHITE, 4)
 
 
-def generate_featured_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
-    img = Image.new("RGB", (W, H), BG)
-    draw = ImageDraw.Draw(img)
-
+def _draw_shell(draw) -> None:
     margin = 48
     _draw_frame(draw, [margin, margin, W - margin, H - margin], 30)
     draw.rectangle([margin, margin, W - margin, margin + 10], fill=ORANGE)
     draw.rectangle([margin + 18, margin + 22, W - margin - 18, margin + 23], fill="#11203A")
+
+
+def _draw_footer(draw, source: str, date_str: str) -> None:
+    footer_y = H - 108
+    draw.rectangle([82, footer_y - 22, W - 82, footer_y - 20], fill=LINE)
+    small = _font(21, bold=True)
+    source_text = f"SOURCE  {source.upper()[:26]}"
+    draw.text((82, footer_y), source_text, font=small, fill=MUTED)
+    date_w = draw.textbbox((0, 0), date_str, font=small)[2]
+    draw.text((W - 82 - date_w, footer_y), date_str, font=small, fill=MUTED)
+
+
+def _draw_page_chip(draw, page_no: int, total_pages: int) -> None:
+    text = f"{page_no}/{total_pages}"
+    fnt = _font(20, bold=True)
+    bbox = draw.textbbox((0, 0), text, font=fnt)
+    w = bbox[2] - bbox[0] + 28
+    h = bbox[3] - bbox[1] + 16
+    x2 = W - 82
+    y1 = 88
+    draw.rounded_rectangle([x2 - w, y1, x2, y1 + h], radius=14, fill="#152746", outline="#28406C", width=1)
+    draw.text((x2 - w + 14, y1 + 7), text, font=fnt, fill=WHITE_SOFT)
+
+
+def _split_action_points(text: str) -> List[str]:
+    text = re.sub(r"\s+", " ", (text or "")).strip()
+    parts = [part.strip(" ，、。；;") for part in re.split(r"[，、。；;]", text) if part.strip(" ，、。；;")]
+    cleaned = []
+    for part in parts:
+        if part not in cleaned:
+            cleaned.append(part)
+    return cleaned[:3]
+
+
+def _draw_check_item(draw, box, text: str) -> None:
+    x1, y1, x2, y2 = box
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=18, fill=PANEL_2, outline="#2C4673", width=2)
+    draw.rounded_rectangle([x1 + 14, y1 + 12, x2 - 14, y2 - 12], radius=14, outline="#182945", width=1)
+    draw.ellipse([x1 + 22, y1 + 22, x1 + 46, y1 + 46], fill="#173C23", outline="#2C8A54", width=1)
+    mark_font = _font(18, bold=True)
+    draw.text((x1 + 27, y1 + 20), "v", font=mark_font, fill="#9CF0B2")
+    body_font = _font(28)
+    lines = _wrap_ellipsized(draw, text, body_font, x2 - x1 - 84, 2)
+    _draw_lines(draw, x1 + 62, y1 + 20, lines, body_font, WHITE, 4)
+
+
+def generate_featured_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
+    img = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(img)
+
+    _draw_shell(draw)
 
     category = _safe_text(post.get("category", "AI NEWS"), "AI NEWS").upper()[:12]
     angle = _safe_text(post.get("angle", ""), "")
@@ -301,6 +349,7 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     x = _badge(draw, category, x, y, ORANGE, WHITE)
     if angle:
         _badge(draw, angle[:16], x, y, "#152746", BLUE)
+    _draw_page_chip(draw, 1, 3)
 
     title_box = [82, 166, W - 96, 326]
     title_font, title_lines = _fit_lines_to_box(
@@ -357,13 +406,112 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
             accents[idx],
         )
 
-    footer_y = H - 108
-    draw.rectangle([82, footer_y - 22, W - 82, footer_y - 20], fill=LINE)
-    small = _font(21, bold=True)
-    source_text = f"SOURCE  {source.upper()[:26]}"
-    draw.text((82, footer_y), source_text, font=small, fill=MUTED)
-    date_w = draw.textbbox((0, 0), date_str, font=small)[2]
-    draw.text((W - 82 - date_w, footer_y), date_str, font=small, fill=MUTED)
+    _draw_footer(draw, source, date_str)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    img.save(output_path, "PNG")
+    print(f"[Image] saved: {output_path}")
+    return output_path
+
+
+def generate_detail_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
+    img = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(img)
+    _draw_shell(draw)
+
+    x = 82
+    y = 88
+    x = _badge(draw, "AI NEWS", x, y, ORANGE, WHITE)
+    _badge(draw, "重點拆解", x, y, "#152746", BLUE)
+    _draw_page_chip(draw, 2, 3)
+
+    eyebrow_font = _font(24, bold=True)
+    draw.text((82, 170), "這則更新在說什麼", font=eyebrow_font, fill=ACCENT)
+
+    title = _safe_text(post.get("title_zh", ""), "今日 AI 重點")
+    title_box = [82, 206, W - 96, 302]
+    title_font, title_lines = _fit_lines_to_box(
+        draw, title, title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 50, 28, True, 8
+    )
+    _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 8)
+
+    blocks = post.get("insight_blocks", [])[:3]
+    defaults = ["核心", "影響", "提醒"]
+    bodies = []
+    for idx, block in enumerate(blocks[:2]):
+        bodies.append(
+            {
+                "heading": _safe_text(block.get("heading", ""), defaults[idx])[:10],
+                "body": _card_body(block.get("body", ""), 80),
+                "accent": [BLUE, ORANGE][idx],
+            }
+        )
+    while len(bodies) < 2:
+        bodies.append({"heading": defaults[len(bodies)], "body": "這則更新和日常工具使用直接有關。", "accent": [BLUE, ORANGE][len(bodies)]})
+
+    _draw_info_card(draw, [82, 360, W - 82, 516], bodies[0]["heading"], bodies[0]["body"], bodies[0]["accent"])
+    _draw_info_card(draw, [82, 540, W - 82, 696], bodies[1]["heading"], bodies[1]["body"], bodies[1]["accent"])
+
+    tip_box = [82, 730, W - 82, 868]
+    draw.rounded_rectangle(tip_box, radius=22, fill="#16243C", outline="#29426C", width=2)
+    draw.rounded_rectangle([tip_box[0] + 14, tip_box[1] + 12, tip_box[2] - 14, tip_box[3] - 12], radius=16, outline="#1E3358", width=1)
+    label_font = _font(20, bold=True)
+    body_font = _font(30)
+    draw.text((104, 752), "先看懂影響", font=label_font, fill=ACCENT)
+    detail_lines = _wrap_ellipsized(draw, "不是只看模型厲不厲害，而是它正在接手多少流程與權限。", body_font, W - 220, 2)
+    _draw_lines(draw, 104, 786, detail_lines, body_font, WHITE, 6)
+
+    _draw_footer(draw, source, date_str)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    img.save(output_path, "PNG")
+    print(f"[Image] saved: {output_path}")
+    return output_path
+
+
+def generate_action_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
+    img = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(img)
+    _draw_shell(draw)
+
+    x = 82
+    y = 88
+    x = _badge(draw, "AI NEWS", x, y, ORANGE, WHITE)
+    _badge(draw, "你可以怎麼做", x, y, "#152746", BLUE)
+    _draw_page_chip(draw, 3, 3)
+
+    title_font = _font(50, bold=True)
+    draw.text((82, 166), "現在先做這 3 件事", font=title_font, fill=WHITE)
+    sub_font = _font(28, bold=True)
+    sub_lines = _wrap_ellipsized(draw, _safe_text(post.get("subtitle_zh", ""), "看懂更新，也要知道怎麼避坑"), sub_font, W - 180, 2)
+    _draw_lines(draw, 82, 246, sub_lines, sub_font, WHITE_SOFT, 6)
+
+    action_text = ""
+    blocks = post.get("insight_blocks", [])[:3]
+    if len(blocks) >= 3:
+        action_text = blocks[2].get("body", "")
+    points = _split_action_points(action_text)
+    while len(points) < 3:
+        fallbacks = [
+            "先檢查這個工具能碰哪些資料",
+            "不用的串接、權限先關掉",
+            "公司與個人帳號不要混用",
+        ]
+        points.append(fallbacks[len(points)])
+
+    start_y = 390
+    for idx, point in enumerate(points[:3]):
+        _draw_check_item(draw, [82, start_y + idx * 128, W - 82, start_y + idx * 128 + 98], point)
+
+    cta_box = [82, 804, W - 82, 892]
+    draw.rounded_rectangle(cta_box, radius=20, fill="#151F33", outline="#2B436E", width=2)
+    cta_label = _font(18, bold=True)
+    cta_font = _font(24, bold=True)
+    draw.text((106, 822), "留言延伸", font=cta_label, fill=MUTED_2)
+    cta_lines = _wrap_ellipsized(draw, "你會先追新功能，還是先收權限？", cta_font, W - 220, 2)
+    _draw_lines(draw, 106, 846, cta_lines, cta_font, WHITE, 4)
+
+    _draw_footer(draw, source, date_str)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     img.save(output_path, "PNG")
@@ -376,6 +524,12 @@ def generate_all_images(post_content: Dict, source: str, date_str: str, output_d
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%H%M%S")
-    card_path = str(Path(output_dir) / f"featured_{ts}.png")
-    generate_featured_card(post_content, source, date_str, card_path)
-    return [card_path]
+    paths = [
+        str(Path(output_dir) / f"featured_{ts}_01.png"),
+        str(Path(output_dir) / f"featured_{ts}_02.png"),
+        str(Path(output_dir) / f"featured_{ts}_03.png"),
+    ]
+    generate_featured_card(post_content, source, date_str, paths[0])
+    generate_detail_card(post_content, source, date_str, paths[1])
+    generate_action_card(post_content, source, date_str, paths[2])
+    return paths

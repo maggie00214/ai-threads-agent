@@ -16,7 +16,7 @@ load_dotenv(Path(__file__).with_name(".env"))
 
 from generators.image_gen import generate_all_images
 from processors.ai_filter import generate_post_content, pick_top_article
-from publishers.threads import post_reply, publish_single
+from publishers.threads import post_reply, publish_carousel, publish_single
 from scrapers.ptt import scrape_ptt
 from scrapers.rss import scrape_rss
 
@@ -88,7 +88,7 @@ def run(dry_run: bool = False, skip_publish: bool = False):
         date_str=today_str,
         output_dir=str(output_dir),
     )
-    print(f"  → 圖片：{image_paths[0]}")
+    print(f"  → 圖片：{len(image_paths)} 張")
 
     post_id = ""
     reply_id = ""
@@ -98,7 +98,10 @@ def run(dry_run: bool = False, skip_publish: bool = False):
     else:
         print("\n[Step 5] 發布到 Threads...")
         caption = post_content.get("caption", "")
-        post_id = publish_single(image_paths[0], caption)
+        if len(image_paths) > 1:
+            post_id = publish_carousel(image_paths, caption)
+        else:
+            post_id = publish_single(image_paths[0], caption)
         print(f"  → 發布成功！Post ID: {post_id}")
         if source_url or source_name:
             reply_lines = []
@@ -128,6 +131,7 @@ def run(dry_run: bool = False, skip_publish: bool = False):
                 },
                 "post_content": post_content,
                 "image_path": str(image_paths[0]),
+                "image_paths": [str(path) for path in image_paths],
                 "source_url": source_url,
                 "seen_urls": updated_seen_urls,
                 "post_id": post_id,
