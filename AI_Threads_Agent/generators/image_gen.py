@@ -20,6 +20,7 @@ ACCENT = "#FFD247"
 WHITE = "#F5F7FF"
 WHITE_SOFT = "#C8D2E6"
 MUTED = "#8FA0C1"
+MUTED_2 = "#7183A8"
 
 FONT_PATH = os.environ.get("FONT_PATH", "")
 
@@ -185,6 +186,12 @@ def _draw_glow(img: Image.Image, cx: int, cy: int, color_hex: str, radius: int, 
     return Image.blend(img, layer, 0.10)
 
 
+def _draw_frame(draw, box, radius: int = 28) -> None:
+    x1, y1, x2, y2 = box
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=radius, fill=PANEL, outline=LINE, width=2)
+    draw.rounded_rectangle([x1 + 14, y1 + 14, x2 - 14, y2 - 14], radius=radius - 10, outline="#1A2A48", width=1)
+
+
 def _safe_text(value: str, fallback: str) -> str:
     value = re.sub(r"\s+", " ", (value or "")).strip()
     return value or fallback
@@ -259,20 +266,18 @@ def _wrap_ellipsized(draw: ImageDraw.ImageDraw, text: str, fnt, max_w: int, max_
 
 def _draw_info_card(draw, box, heading: str, body: str, accent: str) -> None:
     x1, y1, x2, y2 = box
-    draw.rounded_rectangle([x1, y1, x2, y2], radius=18, fill=PANEL_2, outline=LINE, width=2)
-    draw.rectangle([x1 + 22, y1 + 24, x1 + 28, y2 - 24], fill=accent)
+    draw.rounded_rectangle([x1, y1, x2, y2], radius=18, fill=PANEL_2, outline="#2C4673", width=2)
+    draw.rounded_rectangle([x1 + 14, y1 + 12, x2 - 14, y2 - 12], radius=14, outline="#182945", width=1)
+    draw.rectangle([x1 + 18, y1 + 16, x1 + 24, y2 - 16], fill=accent)
 
-    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 74, 1, 24, 20, True)
-    body_font = _font(25)
-    body_lines = _wrap_ellipsized(draw, body, body_font, x2 - x1 - 74, 2)
-    heading_gap = 5
-    body_gap = 2
-    total_h = len(heading_lines) * _line_h(draw, heading_font, 0)
-    total_h += heading_gap
-    total_h += len(body_lines) * _line_h(draw, body_font, body_gap) - body_gap
-    y = y1 + max(14, (y2 - y1 - total_h) // 2)
-    y = _draw_lines(draw, x1 + 46, y, heading_lines, heading_font, accent, 0)
-    _draw_lines(draw, x1 + 46, y + heading_gap, body_lines, body_font, WHITE, body_gap)
+    heading_font, heading_lines = _fit_lines(draw, heading, x2 - x1 - 78, 1, 21, 18, True)
+    body_font = _font(27)
+    body_lines = _wrap_ellipsized(draw, body, body_font, x2 - x1 - 78, 2)
+
+    heading_y = y1 + 14
+    _draw_lines(draw, x1 + 40, heading_y, heading_lines, heading_font, accent, 0)
+    body_y = heading_y + _line_h(draw, heading_font, 0) + 8
+    _draw_lines(draw, x1 + 40, body_y, body_lines, body_font, WHITE, 4)
 
 
 def generate_featured_card(post: Dict, source: str, date_str: str, output_path: str) -> str:
@@ -280,8 +285,9 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     draw = ImageDraw.Draw(img)
 
     margin = 48
-    draw.rounded_rectangle([margin, margin, W - margin, H - margin], radius=30, fill=PANEL, outline=LINE, width=2)
-    draw.rectangle([margin, margin, W - margin, margin + 12], fill=ORANGE)
+    _draw_frame(draw, [margin, margin, W - margin, H - margin], 30)
+    draw.rectangle([margin, margin, W - margin, margin + 10], fill=ORANGE)
+    draw.rectangle([margin + 18, margin + 22, W - margin - 18, margin + 23], fill="#11203A")
 
     category = _safe_text(post.get("category", "AI NEWS"), "AI NEWS").upper()[:12]
     angle = _safe_text(post.get("angle", ""), "")
@@ -291,29 +297,30 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     blocks = post.get("insight_blocks", [])[:3]
 
     x = 82
-    y = 86
+    y = 88
     x = _badge(draw, category, x, y, ORANGE, WHITE)
     if angle:
         _badge(draw, angle[:16], x, y, "#152746", BLUE)
 
-    title_box = [82, 158, W - 82, 292]
+    title_box = [82, 166, W - 96, 326]
     title_font, title_lines = _fit_lines_to_box(
-        draw, title, title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 66, 38, True, 8
+        draw, title, title_box[2] - title_box[0], title_box[3] - title_box[1], 2, 60, 32, True, 10
     )
-    _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 8)
+    _draw_lines_in_box(draw, title_box, title_lines, title_font, WHITE, 10)
 
-    subtitle_box = [84, 312, W - 84, 382]
+    subtitle_box = [84, 340, W - 96, 394]
     subtitle_font, subtitle_lines = _fit_lines_to_box(
-        draw, subtitle, subtitle_box[2] - subtitle_box[0], subtitle_box[3] - subtitle_box[1], 2, 34, 23, True, 6
+        draw, subtitle, subtitle_box[2] - subtitle_box[0], subtitle_box[3] - subtitle_box[1], 2, 29, 21, True, 6
     )
     _draw_lines_in_box(draw, subtitle_box, subtitle_lines, subtitle_font, WHITE_SOFT, 6)
 
     hook_text = hook or "這次重點先看懂"
-    hook_font, hook_lines = _fit_lines(draw, hook_text, W - 210, 2, 44, 30, True)
-    hook_box = [82, 428, W - 82, 548]
-    draw.rounded_rectangle(hook_box, radius=24, fill="#18243A", outline=LINE, width=2)
-    draw.rectangle([hook_box[0] + 26, hook_box[1] + 28, hook_box[0] + 34, hook_box[3] - 28], fill=ACCENT)
-    _draw_centered_lines(draw, [hook_box[0] + 48, hook_box[1], hook_box[2] - 28, hook_box[3]], hook_lines, hook_font, ACCENT, 8)
+    hook_font, hook_lines = _fit_lines_to_box(draw, hook_text, W - 240, 72, 2, 40, 28, True, 8)
+    hook_box = [82, 434, W - 82, 548]
+    draw.rounded_rectangle(hook_box, radius=22, fill="#1A2741", outline="#304B7D", width=2)
+    draw.rounded_rectangle([hook_box[0] + 14, hook_box[1] + 12, hook_box[2] - 14, hook_box[3] - 12], radius=16, outline="#203459", width=1)
+    draw.rectangle([hook_box[0] + 24, hook_box[1] + 24, hook_box[0] + 32, hook_box[3] - 24], fill=ACCENT)
+    _draw_lines_in_box(draw, [hook_box[0] + 48, hook_box[1], hook_box[2] - 28, hook_box[3]], hook_lines, hook_font, ACCENT, 8, "center")
 
     if not blocks:
         blocks = [
@@ -325,7 +332,7 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
     while len(blocks) < 3:
         blocks.append({"heading": "提醒", "body": "常用 AI 工具的人可以先注意這次變動。"})
 
-    card_y = 570
+    card_y = 582
     accents = [BLUE, ORANGE, ACCENT]
     defaults = ["核心", "影響", "提醒"]
     fallback_bodies = [
@@ -344,15 +351,15 @@ def generate_featured_card(post: Dict, source: str, date_str: str, output_path: 
             seen_bodies.add(body_key)
         _draw_info_card(
             draw,
-            [82, card_y + idx * 124, W - 82, card_y + idx * 124 + 112],
+            [82, card_y + idx * 114, W - 82, card_y + idx * 114 + 96],
             _safe_text(block.get("heading", ""), defaults[idx])[:10],
             body,
             accents[idx],
         )
 
-    footer_y = H - 112
-    draw.rectangle([82, footer_y - 20, W - 82, footer_y - 18], fill=LINE)
-    small = _font(22, bold=True)
+    footer_y = H - 108
+    draw.rectangle([82, footer_y - 22, W - 82, footer_y - 20], fill=LINE)
+    small = _font(21, bold=True)
     source_text = f"SOURCE  {source.upper()[:26]}"
     draw.text((82, footer_y), source_text, font=small, fill=MUTED)
     date_w = draw.textbbox((0, 0), date_str, font=small)[2]
