@@ -1,6 +1,6 @@
 {
   "date": "2026.06.25",
-  "articles_fetched": 43,
+  "articles_fetched": 44,
   "selected": {
     "title": "迎戰 AI 武器化新風暴！解密 Agentic AI 紅藍對決與企業治理生路",
     "source": "TechOrange",
@@ -29,11 +29,11 @@
     ],
     "caption": "這則 AI 消息不要只滑過，後面可能會影響你每天怎麼用工具。\n\n1. 核心重點：迎戰 AI 武器化新風暴！解密 Agentic AI 紅藍對決與企業治理生路。\n\n2. 為什麼重要：如果你平常有在用 AI 工具，這可能會改變你的成本、效率或資料風險。\n\n3. 你可以怎麼做：先檢查設定、權限和帳單；不用的外掛或串接先關掉，敏感資料不要直接丟進 AI。\n\n你覺得 AI 工具現在是在幫大家省時間，還是在把大家綁進更貴的工作流程？"
   },
-  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_145009_01.png",
+  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_160826_01.png",
   "image_paths": [
-    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_145009_01.png",
-    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_145009_02.png",
-    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_145009_03.png"
+    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_160826_01.png",
+    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_160826_02.png",
+    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260625/images/featured_160826_03.png"
   ],
   "source_url": "https://techorange.com/2026/06/25/gamania-cloudforce-agentic-ai-soc/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss",
   "seen_urls": [
