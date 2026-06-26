@@ -1,0 +1,44 @@
+{
+  "date": "2026.06.26",
+  "articles_fetched": 36,
+  "selected": {
+    "title": "AI 資料中心引爆新一波通膨：從記憶體到電力成本升溫，Apple、Xbox 漲價只是開始？",
+    "source": "TechOrange",
+    "url": "https://techorange.com/2026/06/26/the-data-center-boom-is-sparking-a-third-wave-of-inflation/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss",
+    "pick_reason": "Fallback: practical relevance, visibility, and content depth."
+  },
+  "post_content": {
+    "category": "AI NEWS",
+    "title_zh": "AI 資料中心引爆新一波通膨",
+    "subtitle_zh": "這則更新和一般使用者直接有關",
+    "hook_line": "別只看新聞標題",
+    "angle": "實用資訊",
+    "insight_blocks": [
+      {
+        "heading": "核心",
+        "body": "AI 熱潮不只讓科技巨頭的資本支出大幅增加，如今更成為美國新一波的通膨壓力來源。根據全國企業經濟學家協會（N"
+      },
+      {
+        "heading": "影響",
+        "body": "如果你平常有在用 AI 工具，這會改變你的使用成本或工作方式。"
+      },
+      {
+        "heading": "避坑",
+        "body": "先查設定與權限，關掉不用的串接，敏感資料不要直接丟。"
+      }
+    ],
+    "caption": "這則 AI 消息不要只滑過，後面可能會影響你每天怎麼用工具。\n\n1. 核心重點：AI 資料中心引爆新一波通膨：從記憶體到電力成本升溫，Apple、Xbox 漲價只是開始？。\n\n2. 為什麼重要：如果你平常有在用 AI 工具，這可能會改變你的成本、效率或資料風險。\n\n3. 你可以怎麼做：先檢查設定、權限和帳單；不用的外掛或串接先關掉，敏感資料不要直接丟進 AI。\n\n你覺得 AI 工具現在是在幫大家省時間，還是在把大家綁進更貴的工作流程？"
+  },
+  "image_path": "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260626/images/featured_144133_01.png",
+  "image_paths": [
+    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260626/images/featured_144133_01.png",
+    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260626/images/featured_144133_02.png",
+    "/home/runner/work/ai-threads-agent/ai-threads-agent/每日內容/20260626/images/featured_144133_03.png"
+  ],
+  "source_url": "https://techorange.com/2026/06/26/the-data-center-boom-is-sparking-a-third-wave-of-inflation/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss",
+  "seen_urls": [
+    "https://techorange.com/2026/06/26/the-data-center-boom-is-sparking-a-third-wave-of-inflation/?utm_source=rss&utm_medium=feed&utm_campaign=techorange_rss"
+  ],
+  "post_id": "",
+  "reply_id": ""
+}
