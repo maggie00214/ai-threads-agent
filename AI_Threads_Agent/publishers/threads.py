@@ -67,9 +67,13 @@ def _upload_to_public_url(image_path: str) -> str:
 
 def _upload_image_container(image_path: str, is_carousel_item: bool = True) -> str:
     public_url = _upload_to_public_url(image_path)
+    return _create_image_container_from_url(public_url, is_carousel_item=is_carousel_item)
+
+
+def _create_image_container_from_url(image_url: str, is_carousel_item: bool = True) -> str:
     data = {
         "media_type": "IMAGE",
-        "image_url": public_url,
+        "image_url": image_url,
         "is_carousel_item": str(is_carousel_item).lower(),
     }
     result = _api("POST", f"/{USER_ID}/threads", data=data)
@@ -109,6 +113,28 @@ def publish_carousel(image_paths: List[str], caption: str) -> str:
     item_ids = []
     for path in image_paths:
         container_id = _upload_image_container(path, is_carousel_item=True)
+        item_ids.append(container_id)
+        time.sleep(1)
+
+    print("[Threads] waiting 30s before creating carousel...")
+    time.sleep(30)
+
+    carousel_id = _create_carousel_container(item_ids, caption)
+    time.sleep(5)
+    return _publish_container(carousel_id)
+
+
+def publish_carousel_urls(image_urls: List[str], caption: str) -> str:
+    if not ACCESS_TOKEN or not USER_ID:
+        raise ValueError("THREADS_ACCESS_TOKEN or THREADS_USER_ID is missing")
+    if len(image_urls) < 2:
+        raise ValueError("Carousel publishing requires at least 2 images")
+
+    image_urls = image_urls[:20]
+    print(f"[Threads] creating carousel from {len(image_urls)} public URLs...")
+    item_ids = []
+    for url in image_urls:
+        container_id = _create_image_container_from_url(url, is_carousel_item=True)
         item_ids.append(container_id)
         time.sleep(1)
 
