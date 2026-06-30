@@ -1,9 +1,6 @@
 name: Daily AI Threads Post Workflow
 
-"on":
-  schedule:
-    - cron: '7 12 * * *'
-    - cron: '37 13 * * *'
+on:
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +22,7 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Python dependencies
         run: pip install -r AI_Threads_Agent/requirements.txt
@@ -50,7 +47,7 @@ jobs:
           git fetch origin images --depth=1 2>/dev/null || true
 
           if git show "origin/images:每日內容/${TODAY}/log.json" > /tmp/existing_log.json 2>/dev/null; then
-            POST_ID=$(python3 -c "import json; import sys; data=json.load(open('/tmp/existing_log.json', encoding='utf-8')); print(data.get('post_id', ''))")
+            POST_ID=$(python3 -c "import json; data=json.load(open('/tmp/existing_log.json', encoding='utf-8')); print(data.get('post_id', ''))")
             if [ -n "$POST_ID" ]; then
               echo "already_posted=true" >> "$GITHUB_OUTPUT"
               echo "existing_post_id=$POST_ID" >> "$GITHUB_OUTPUT"
@@ -80,16 +77,13 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/maggie00214/ai-threads-agent.git
 
-          # 備份今日產出的整組圖片與 log
           mkdir -p /tmp/daily/${TODAY}/images
           cp -R 每日內容/${TODAY}/images/. /tmp/daily/${TODAY}/images/
           cp 每日內容/${TODAY}/log.json /tmp/daily/${TODAY}/
 
-          # 清除 working tree 與未追蹤檔，讓 branch 切換不報錯
           git reset --hard HEAD
           git clean -fd
 
-          # 切換到 images 孤立分支
           git fetch origin images 2>/dev/null || true
           if git ls-remote --exit-code origin images 2>/dev/null; then
             git checkout -B images origin/images
@@ -98,7 +92,6 @@ jobs:
             git rm -rf .
           fi
 
-          # 放入今日整組圖片（用唯一檔名，不會被 CDN 快取）
           mkdir -p 每日內容/${TODAY}/images
           cp -R /tmp/daily/${TODAY}/images/. 每日內容/${TODAY}/images/
           cp /tmp/daily/${TODAY}/log.json 每日內容/${TODAY}/
@@ -107,10 +100,7 @@ jobs:
           git commit --allow-empty -m "Daily images ${TODAY}"
           git push --force origin images
 
-          # 切回 main 還原 Python 環境
           git checkout main
-
-          # 還原剛才生成的圖片與 log，供後續發布步驟使用
           mkdir -p 每日內容/${TODAY}/images
           cp -R /tmp/daily/${TODAY}/images/. 每日內容/${TODAY}/images/
           cp /tmp/daily/${TODAY}/log.json 每日內容/${TODAY}/log.json
